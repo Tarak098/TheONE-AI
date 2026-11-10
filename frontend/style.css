@@ -83,27 +83,36 @@ body.light-mode {
   -webkit-font-smoothing: antialiased;
 }
 
-html, body {
+html {
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll; /* Visible side scrolling bar for the entire website */
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
   width: 100%;
   min-height: 100%;
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
-  overflow-y: auto;
   font-family: var(--font-sans);
   background: var(--bg-app);
   color: var(--text-primary);
   user-select: none;
 }
 
-/* Custom Sleek Scrollbar */
+/* Side Scrolling Bar for Entire Screen */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -111,16 +120,16 @@ html, body {
 }
 html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.15);
+  scrollbar-color: rgba(255, 255, 255, 0.28) rgba(0, 0, 0, 0.4);
 }
 body.light-mode ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.08);
 }
 body.light-mode ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.28);
 }
 body.light-mode html {
-  scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
+  scrollbar-color: rgba(0, 0, 0, 0.28) rgba(0, 0, 0, 0.08);
 }
 
 button {
@@ -145,13 +154,10 @@ input {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg-stage);
   transition: background var(--transition-slow);
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .hidden {
@@ -328,7 +334,7 @@ input {
    2. CENTRAL VOICE STAGE — THE ORB (Voice-First Centerpiece)
    ============================================================================= */
 .voice-stage {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
@@ -337,22 +343,19 @@ input {
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: 10px 20px 16px;
+  padding: 10px 20px 20px;
   z-index: 10;
-  min-height: 0;
 }
 
 /* The Orb Container */
 .orb-container {
   position: relative;
-  width: clamp(160px, min(28vw, 28vh), 270px);
-  height: clamp(160px, min(28vw, 28vh), 270px);
+  width: clamp(210px, 32vw, 310px);
+  height: clamp(210px, 32vw, 310px);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
-  flex-shrink: 0;
-  transition: all var(--transition-base);
+  margin-bottom: 24px;
 }
 
 /* Ambient Outer Pulsing Glow */
@@ -657,12 +660,10 @@ input {
    Floating Live Transcript Card (Compact & Modern)
    ============================================================================= */
 .floating-transcript-card {
-  margin-top: 14px;
+  margin-top: 18px;
   width: 100%;
   max-width: 480px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: var(--bg-glass-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -671,8 +672,7 @@ input {
   animation: transcript-pop 0.35s var(--ease-spring);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 10px;
 }
 
 @keyframes transcript-pop {
@@ -696,32 +696,6 @@ input {
   background: rgba(255, 255, 255, 0.06);
   color: var(--accent-primary);
   border: 1px solid var(--border-subtle);
-}
-
-.transcript-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-float-close {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.72rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
-  transition: all var(--transition-fast);
-}
-
-.btn-float-close:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #f87171;
 }
 
 .btn-float-replay {
@@ -862,24 +836,16 @@ input {
    3. Minimal Bottom Controls & Prominent Microphone Button
    ============================================================================= */
 .bottom-controls {
-  position: sticky;
-  bottom: 0;
   width: 100%;
   max-width: 580px;
   margin: 0 auto;
-  padding: 8px 20px 20px;
+  padding: 10px 20px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  z-index: 30;
+  gap: 14px;
+  z-index: 20;
   flex-shrink: 0;
-  background: linear-gradient(to top, var(--bg-app) 80%, rgba(6, 7, 10, 0.7) 95%, transparent 100%);
-  backdrop-filter: blur(8px);
-}
-
-body.light-mode .bottom-controls {
-  background: linear-gradient(to top, var(--bg-app) 80%, rgba(248, 250, 252, 0.7) 95%, transparent 100%);
 }
 
 /* Prominent Microphone Cluster */
@@ -1413,45 +1379,6 @@ body.theme-roast .voice-option-card.active .voice-status-pill {
 
   .slide-drawer {
     max-width: 100%;
-  }
-}
-
-/* Vertical Height Breakpoint for Laptops & Small Screens */
-@media (max-height: 740px) {
-  :root {
-    --header-height: 52px;
-  }
-
-  .orb-container {
-    width: clamp(130px, 20vh, 180px);
-    height: clamp(130px, 20vh, 180px);
-    margin-bottom: 10px;
-  }
-
-  .orb-status-display {
-    min-height: 38px;
-    gap: 4px;
-  }
-
-  .orb-status-text {
-    font-size: 0.95rem;
-  }
-
-  .floating-transcript-card {
-    margin-top: 8px;
-    padding: 10px 14px;
-    max-height: 140px;
-    gap: 6px;
-  }
-
-  .bottom-controls {
-    padding: 4px 16px 14px;
-    gap: 8px;
-  }
-
-  .prominent-mic-btn {
-    width: 56px;
-    height: 56px;
   }
 }
 
