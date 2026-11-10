@@ -136,10 +136,16 @@ class EvonService:
                 "Please configure GNANI_EVON_API_URL and credentials in .env."
             )
 
+        clean_key = (self.api_key or "").strip().strip("\r\n\t\"'")
+        if "=" in clean_key:
+            prefix, _, after = clean_key.partition("=")
+            if prefix.strip().replace("_", "").isalnum():
+                clean_key = after.strip().strip("\r\n\t\"'")
+
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-            "X-API-Key-ID": self.api_key,  # Compatible with Gnani API headers
+            "Authorization": f"Bearer {clean_key}",
+            "X-API-Key-ID": clean_key,  # Compatible with Gnani API headers
         }
 
         payload = {

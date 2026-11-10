@@ -110,6 +110,39 @@ class Settings(BaseSettings):
             return [str(origin).strip() for origin in value]
         return ["*"]
 
+    @field_validator(
+        "GEMINI_API_KEY",
+        "GNANI_API_KEY",
+        "GNANI_PRISMA_API_KEY",
+        "GNANI_EVON_API_KEY",
+        "GNANI_TIMBRE_API_KEY",
+        mode="before",
+    )
+    @classmethod
+    def clean_api_credential(cls, value: Any) -> Optional[str]:
+        """
+        Sanitize and normalize API credential values.
+        Strips:
+        - Accidental variable prefix (e.g., 'GNANI_API_KEY=xxx' -> 'xxx')
+        - Surrounding double or single quotes ('"xxx"' -> 'xxx')
+        - Leading/trailing whitespace, newlines, carriage returns, tabs
+        """
+        if value is None:
+            return None
+        val_str = str(value).strip().strip("\r\n\t")
+        if not val_str:
+            return None
+        # Handle accidental 'KEY_NAME=value' paste in Render or .env
+        if "=" in val_str:
+            prefix, _, after = val_str.partition("=")
+            if prefix.strip().replace("_", "").isalnum():
+                val_str = after.strip()
+        # Strip surrounding quotes
+        while (val_str.startswith('"') and val_str.endswith('"')) or (val_str.startswith("'") and val_str.endswith("'")):
+            val_str = val_str[1:-1].strip()
+        val_str = val_str.strip().strip("\r\n\t\"'")
+        return val_str if val_str else None
+
     # Credential Resolution Properties
     @property
     def has_gemini_credentials(self) -> bool:

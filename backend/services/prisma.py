@@ -113,8 +113,15 @@ class PrismaService:
             logger.error("Attempted transcription without configured Prisma API credentials.")
             raise PrismaConfigError("Gnani Prisma API credentials are not configured.")
 
+        # Defensive sanitization of API key to prevent header syntax errors
+        clean_key = (self.api_key or "").strip().strip("\r\n\t\"'")
+        if "=" in clean_key:
+            prefix, _, after = clean_key.partition("=")
+            if prefix.strip().replace("_", "").isalnum():
+                clean_key = after.strip().strip("\r\n\t\"'")
+
         headers = {
-            "X-API-Key-ID": self.api_key,
+            "X-API-Key-ID": clean_key,
         }
 
         # Form fields documented for Prisma v3 REST
@@ -156,7 +163,12 @@ class PrismaService:
             ) from err
         except requests.exceptions.RequestException as err:
             logger.error("Network request error during Prisma STT: %s", err)
-            raise PrismaConnectionError(f"Network error during speech recognition: {err}") from err
+            err_msg = str(err)
+            if clean_key and clean_key in err_msg:
+                err_msg = err_msg.replace(clean_key, "[REDACTED]")
+            if "header value" in err_msg.lower():
+                err_msg = "Invalid API key format or header characters. Check GNANI_API_KEY environment variable."
+            raise PrismaConnectionError(f"Network error during speech recognition: {err_msg}") from err
 
         # Parse response safely
         return self._parse_response(response, language_code)

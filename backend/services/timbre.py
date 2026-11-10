@@ -400,9 +400,16 @@ class TimbreService:
         else:
             selected_speed = 1.0
 
+        # Defensive sanitization of API key to prevent header syntax errors
+        clean_key = (self.api_key or "").strip().strip("\r\n\t\"'")
+        if "=" in clean_key:
+            prefix, _, after = clean_key.partition("=")
+            if prefix.strip().replace("_", "").isalnum():
+                clean_key = after.strip().strip("\r\n\t\"'")
+
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "X-API-Key-ID": self.api_key,
+            "Authorization": f"Bearer {clean_key}",
+            "X-API-Key-ID": clean_key,
             "Content-Type": "application/json",
         }
 
@@ -454,13 +461,18 @@ class TimbreService:
                 raise TimbreTimeoutError(f"Gnani Timbre TTS request timed out after {self.timeout}s.") from err
             except requests.exceptions.RequestException as err:
                 if attempt < max_attempts:
-                    logger.warning("Transient network error calling Timbre (%s). Retrying...", err)
+                    logger.warning("Transient network error calling Timbre. Retrying...")
                     import time
                     time.sleep(backoff_delay)
                     backoff_delay *= 2.0
                     continue
                 logger.error("Network error communicating with Timbre TTS: %s", err)
-                raise TimbreAPIError(f"Network error communicating with Gnani Timbre: {err}") from err
+                err_msg = str(err)
+                if clean_key and clean_key in err_msg:
+                    err_msg = err_msg.replace(clean_key, "[REDACTED]")
+                if "header value" in err_msg.lower():
+                    err_msg = "Invalid API key format or header characters. Check GNANI_API_KEY environment variable."
+                raise TimbreAPIError(f"Network error communicating with Gnani Timbre: {err_msg}") from err
 
         if response is None:
             raise TimbreAPIError("Failed to obtain response from Gnani Timbre.")
