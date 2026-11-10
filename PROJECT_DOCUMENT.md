@@ -1,6 +1,7 @@
 # TheONE AI — Project Overview & Architecture Document
 
 **Application Name:** TheONE AI  
+**Live Production Website:** [https://theone-ai.onrender.com](https://theone-ai.onrender.com)  
 **Repository:** [https://github.com/Tarak098/TheONE-AI.git](https://github.com/Tarak098/TheONE-AI.git)  
 **Deployment Platform:** Render (Web Service)  
 **Primary Interface:** Minimal, voice-first AI companion inspired by ChatGPT Advanced Voice Mode  

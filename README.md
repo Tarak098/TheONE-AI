@@ -3,6 +3,18 @@
 > **A minimal, voice-first AI companion inspired by ChatGPT's Advanced Voice Mode.**  
 > Powered by **FastAPI**, **Gnani Prisma STT**, **Google Gemma 4 26B**, and **Gnani Timbre TTS**.
 
+[![Live Production](https://img.shields.io/badge/Live_App-theone--ai.onrender.com-brightgreen?style=for-the-badge&logo=render)](https://theone-ai.onrender.com)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Tarak098%2FTheONE--AI-blue?style=for-the-badge&logo=github)](https://github.com/Tarak098/TheONE-AI)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+
+---
+
+### 🌐 Live Production Application
+🔗 **[https://theone-ai.onrender.com](https://theone-ai.onrender.com)**
+
+Experience real-time expressive voice interaction with dual personality modes (`Always Funny` & `Roast Companion`), real-time voice orb visualizer, and selectable Indian neural voices (Yashvi & Zayan).
+
 ---
 
 ## 🌟 Overview
