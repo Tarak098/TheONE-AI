@@ -84,6 +84,7 @@ const floatModePill = document.getElementById('float-mode-pill');
 const floatUserText = document.getElementById('float-user-text');
 const floatBotText = document.getElementById('float-bot-text');
 const btnFloatReplay = document.getElementById('btn-float-replay');
+const btnFloatClose = document.getElementById('btn-float-close');
 const btnOpenHistoryLink = document.getElementById('btn-open-history-link');
 
 // Slide Drawers & Backdrops
@@ -639,6 +640,14 @@ function stopActiveAudio() {
 // =============================================================================
 // Floating Transcript Card & History Drawer
 // =============================================================================
+if (btnFloatClose) {
+  btnFloatClose.addEventListener('click', () => {
+    if (floatingTranscript) {
+      floatingTranscript.style.display = 'none';
+    }
+  });
+}
+
 function updateFloatingTranscript(userText, botText, mode) {
   if (!floatingTranscript) return;
 
@@ -652,6 +661,14 @@ function updateFloatingTranscript(userText, botText, mode) {
   }
 
   floatingTranscript.style.display = 'flex';
+
+  // Smoothly keep chat input and response visible without jumping
+  window.requestAnimationFrame(() => {
+    const bottomBar = document.querySelector('.bottom-controls');
+    if (bottomBar) {
+      bottomBar.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  });
 }
 
 function appendMessageBubble(role, content, mode, model) {

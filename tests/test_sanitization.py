@@ -19,3 +19,4 @@ def test_gemini_key_with_quotes():
 def test_key_with_whitespace():
     s = Settings(GNANI_API_KEY="   vach_clean_key \r\n\t")
     assert s.GNANI_API_KEY == "vach_clean_key"
+
