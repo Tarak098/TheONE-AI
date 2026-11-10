@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheONE AI — Voice-First AI Companion</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+</head>
+<body class="theme-funny dark-mode">
+  <div class="app-viewport">
+
+    <!-- =====================================================================
+         1. MINIMAL TOP BAR
+         ===================================================================== -->
+    <header class="top-nav">
+      <!-- Left: Minimal Branding -->
+      <div class="nav-brand">
+        <span class="brand-logo" id="brand-avatar">✨</span>
+        <div class="brand-text">
+          <span class="brand-name">TheONE <span class="brand-highlight">AI</span></span>
+          <span class="live-status-dot" id="backend-status" title="Connecting to backend...">
+            <span class="pulse-dot"></span>
+            <span class="status-label" id="backend-status-text">Online</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Center: Elegant Mode Selector Pill -->
+      <div class="mode-pill-container" role="radiogroup" aria-label="Personality Mode">
+        <button type="button" id="btn-mode-funny" class="mode-pill-btn active" data-mode="always_funny" title="Switch to Always Funny mode">
+          <span class="pill-icon">😂</span>
+          <span class="pill-text">Always Funny</span>
+        </button>
+        <button type="button" id="btn-mode-roast" class="mode-pill-btn" data-mode="roast_companion" title="Switch to Roast Companion mode">
+          <span class="pill-icon">🔥</span>
+          <span class="pill-text">Roast Companion</span>
+        </button>
+      </div>
+
+      <!-- Right: Minimal Action Controls -->
+      <div class="nav-actions">
+        <!-- Voice Badge / Indicator -->
+        <div id="tts-voice-badge" class="nav-badge voice-badge" title="Active Gnani Timbre Voice">
+          <span class="badge-icon">🎙️</span>
+          <span id="tts-voice-badge-text">Yashvi</span>
+        </div>
+
+        <!-- Hidden compat elements for state sync -->
+        <span id="personality-badge" class="hidden"><span id="personality-badge-text">Always Funny</span></span>
+        <span id="model-badge" class="hidden"><span id="model-badge-text">Gemma 4 26B</span></span>
+        <span id="conversation-id-label" class="hidden">Session: New</span>
+
+        <!-- Open Transcript History Drawer -->
+        <button type="button" id="btn-toggle-transcript" class="nav-icon-btn" title="View conversation transcript (history)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="counter-badge" id="transcript-count" style="display:none">0</span>
+        </button>
+
+        <!-- Open Settings Drawer -->
+        <button type="button" id="btn-open-settings" class="nav-icon-btn" title="Settings (Voice, Language, Theme)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+
+        <!-- Theme Toggle (Dark/Light) -->
+        <button type="button" id="btn-toggle-theme" class="nav-icon-btn" title="Toggle Light/Dark Theme">
+          <span class="theme-icon-dark">🌙</span>
+          <span class="theme-icon-light" style="display:none">☀️</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- =====================================================================
+         2. CENTRAL VOICE STAGE — THE ORB (Core Interaction)
+         ===================================================================== -->
+    <main class="voice-stage">
+      <div class="orb-container">
+        <!-- Ambient Background Glow & Fluid Aura -->
+        <div class="orb-ambient-glow" id="orb-ambient-glow"></div>
+
+        <!-- Multi-layered Canvas for Real-time Audio-Reactive Waves -->
+        <canvas id="orb-canvas" class="orb-canvas" width="480" height="480"></canvas>
+
+        <!-- Central Animated Circular Voice Sphere (The Orb) -->
+        <div class="voice-orb" id="voice-orb" role="button" tabindex="0" title="Click to speak with TheONE AI">
+          <div class="orb-surface"></div>
+          <div class="orb-blob blob-1"></div>
+          <div class="orb-blob blob-2"></div>
+          <div class="orb-blob blob-3"></div>
+          <div class="orb-specular"></div>
+          <div class="orb-center-pulse"></div>
+        </div>
+      </div>
+
+      <!-- Live Voice State & Status Feedback -->
+      <div class="orb-status-display">
+        <div class="status-indicator-row">
+          <span class="status-wave-bars" id="status-wave-bars">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span class="orb-status-text" id="orb-status-text">Ready</span>
+          <span class="timer-badge" id="recording-timer" style="display:none">00:00</span>
+        </div>
+        <p class="orb-substatus" id="recording-state">Tap the orb or mic to talk with TheONE AI</p>
+      </div>
+
+      <!-- Live Floating Transcript (Snappy, Compact, Uncluttered) -->
+      <div class="floating-transcript-card" id="floating-transcript" style="display:none">
+        <div class="transcript-header">
+          <span class="transcript-mode-pill" id="float-mode-pill">Always Funny</span>
+          <button type="button" class="btn-float-replay" id="btn-float-replay" title="Replay voice response">
+            <span>▶️</span><span>Play Voice</span>
+          </button>
+        </div>
+        <div class="transcript-body">
+          <p class="float-user-text" id="float-user-text"></p>
+          <p class="float-bot-text" id="float-bot-text"></p>
+        </div>
+        <button type="button" class="btn-expand-transcript" id="btn-open-history-link">View conversation history →</button>
+      </div>
+
+      <!-- Loading / Thinking Spinner (Overlay) -->
+      <div id="ai-loading" class="voice-thinking-indicator hidden">
+        <div class="glow-dots"><span></span><span></span><span></span></div>
+        <span id="loading-text">TheONE AI is thinking...</span>
+      </div>
+
+      <!-- Subtle Error Toast -->
+      <div id="error-box" class="toast-error hidden" role="alert">
+        <span class="toast-icon">⚠️</span>
+        <span id="error-message" class="toast-text">Something went wrong.</span>
+        <button type="button" id="btn-dismiss-error" class="toast-close">✕</button>
+      </div>
+
+      <!-- STT Banner Notification -->
+      <div id="stt-status-banner" class="toast-stt hidden">
+        <span class="toast-icon">🎙️</span>
+        <span id="stt-status-message">Recognized speech transcribed!</span>
+      </div>
+    </main>
+
+    <!-- =====================================================================
+         3. BOTTOM VOICE & CHAT CONTROLS
+         ===================================================================== -->
+    <footer class="bottom-controls">
+      <!-- Prominent Glowing Center Microphone Button -->
+      <div class="mic-cluster">
+        <button type="button" id="btn-mic" class="prominent-mic-btn idle" title="Tap to start/stop speaking">
+          <div class="mic-ripple-ring ring-1"></div>
+          <div class="mic-ripple-ring ring-2"></div>
+          <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Minimal Collapsible Text Input Bar -->
+      <div class="chat-input-wrapper">
+        <form id="chat-form" class="minimal-chat-bar">
+          <input
+            type="text"
+            id="text-input"
+            class="minimal-input"
+            placeholder="Type a message or tap the mic..."
+            autocomplete="off"
+          />
+          <button type="submit" id="btn-send" class="minimal-send-btn" title="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </footer>
+
+    <!-- =====================================================================
+         4. SLIDE-OVER CONVERSATION TRANSCRIPT DRAWER
+         ===================================================================== -->
+    <div class="drawer-backdrop" id="transcript-backdrop"></div>
+    <aside class="slide-drawer transcript-drawer" id="transcript-drawer" aria-label="Conversation History">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="drawer-icon">💬</span>
+          <h2>Conversation Transcript</h2>
+        </div>
+        <div class="drawer-actions">
+          <button type="button" id="btn-clear-chat" class="drawer-tool-btn" title="Clear conversation history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Clear
+          </button>
+          <button type="button" class="drawer-close-btn" id="btn-close-transcript" title="Close transcript">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-content">
+        <div class="chat-stream" id="chat-stream">
+          <!-- Initial Welcome Card -->
+          <div class="chat-bubble bot-bubble">
+            <div class="bubble-header">
+              <span class="bubble-avatar">✨</span>
+              <span class="bubble-sender">TheONE AI</span>
+              <span class="bubble-tag tag-funny">Always Funny</span>
+              <span class="bubble-time">Just now</span>
+            </div>
+            <div class="bubble-content">
+              Welcome to <strong>TheONE AI</strong>. Tap the glowing orb or microphone to speak naturally, or type below!
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- =====================================================================
+         5. SLIDE-OVER SETTINGS DRAWER (Voice, Language, Theme)
+         ===================================================================== -->
+    <div class="drawer-backdrop" id="settings-backdrop"></div>
+    <aside class="slide-drawer settings-drawer" id="settings-drawer" aria-label="Settings">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="drawer-icon">⚙️</span>
+          <h2>Settings</h2>
+        </div>
+        <button type="button" class="drawer-close-btn" id="btn-close-settings" title="Close settings">✕</button>
+      </div>
+
+      <div class="drawer-content settings-content">
+        <!-- Section: User-Selectable Voice Feature (Gnani Timbre TTS) -->
+        <div class="settings-group">
+          <div class="settings-group-header">
+            <span class="settings-label">Voice Selection</span>
+            <span class="settings-sublabel">Independent voice for <strong id="voice-mode-label">Always Funny</strong></span>
+          </div>
+          <div class="voice-cards-grid" id="voice-options-container">
+            <button type="button" class="voice-option-card active" data-voice="Yashvi" id="btn-voice-yashvi">
+              <div class="voice-card-left">
+                <span class="voice-avatar-icon">👩</span>
+                <div class="voice-text-meta">
+                  <span class="voice-display-name">Yashvi</span>
+                  <span class="voice-gender-pill female">Female Voice</span>
+                </div>
+              </div>
+              <span class="voice-status-pill">Selected</span>
+            </button>
+
+            <button type="button" class="voice-option-card" data-voice="Zayan" id="btn-voice-zayan">
+              <div class="voice-card-left">
+                <span class="voice-avatar-icon">👨</span>
+                <div class="voice-text-meta">
+                  <span class="voice-display-name">Zayan</span>
+                  <span class="voice-gender-pill male">Male Voice</span>
+                </div>
+              </div>
+              <span class="voice-status-pill">Select</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section: Spoken Language (Gnani Prisma STT) -->
+        <div class="settings-group">
+          <div class="settings-group-header">
+            <span class="settings-label">Spoken Language (Prisma STT)</span>
+            <span class="settings-sublabel">Indian language speech recognition</span>
+          </div>
+          <select id="language-select" class="settings-dropdown">
+            <option value="en-IN" selected>English (India) — en-IN</option>
+            <option value="hi-IN">Hindi (हिन्दी) — hi-IN</option>
+            <option value="te-IN">Telugu (తెలుగు) — te-IN</option>
+            <option value="ta-IN">Tamil (தமிழ்) — ta-IN</option>
+            <option value="kn-IN">Kannada (ಕನ್ನಡ) — kn-IN</option>
+            <option value="ml-IN">Malayalam (മലയാളം) — ml-IN</option>
+          </select>
+        </div>
+
+        <!-- Section: Architecture & Engine Status -->
+        <div class="settings-group">
+          <div class="settings-group-header">
+            <span class="settings-label">Pipeline Engine</span>
+            <span class="settings-sublabel">Prisma STT • Gemma 4 26B • Timbre TTS</span>
+          </div>
+          <div class="pipeline-status-list">
+            <div class="pipeline-item">
+              <span>Speech-to-Text</span>
+              <span class="pipeline-tag">Gnani Prisma (v3)</span>
+            </div>
+            <div class="pipeline-item">
+              <span>Intelligence</span>
+              <span class="pipeline-tag">Google Gemma 4 26B</span>
+            </div>
+            <div class="pipeline-item">
+              <span>Text-to-Speech</span>
+              <span class="pipeline-tag">Gnani Timbre (v2.5)</span>
+            </div>
+            <div class="pipeline-item">
+              <span>Response Rule</span>
+              <span class="pipeline-tag accent">Max 1 Sentence</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

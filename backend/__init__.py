@@ -1,0 +1,2 @@
+"""LaughBot AI Backend Package."""
+
