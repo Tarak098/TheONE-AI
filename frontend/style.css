@@ -226,8 +226,8 @@ input {
   box-shadow: 0 0 8px #10b981;
 }
 
-/* Center Personality Mode Pill */
-.mode-pill-container {
+/* Center Voice Selector Pill (Yashvi & Zayan) */
+.voice-selector-nav {
   display: inline-flex;
   align-items: center;
   padding: 3px;
@@ -238,7 +238,7 @@ input {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-.mode-pill-btn {
+.nav-voice-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -250,18 +250,18 @@ input {
   transition: all var(--transition-fast);
 }
 
-.mode-pill-btn:hover {
+.nav-voice-btn:hover {
   color: var(--text-primary);
 }
 
-.mode-pill-btn.active {
+.nav-voice-btn.active {
   background: var(--bg-glass-card);
   color: var(--text-primary);
   border: 1px solid var(--border-hover);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.mode-pill-btn .pill-icon {
+.nav-voice-btn .nav-voice-avatar {
   font-size: 0.95rem;
 }
 
@@ -1345,12 +1345,12 @@ body.theme-roast .voice-option-card.active .voice-status-pill {
     font-size: 0.95rem;
   }
 
-  .mode-pill-btn {
+  .nav-voice-btn {
     padding: 5px 10px;
     font-size: 0.72rem;
   }
 
-  .mode-pill-btn .pill-text {
+  .nav-voice-btn .nav-voice-name {
     display: inline;
   }
 

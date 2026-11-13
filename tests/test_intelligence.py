@@ -43,37 +43,29 @@ client = TestClient(app)
 # 1. Personality Selection & Validation Tests
 # ------------------------------------------------------------------------------
 def test_personality_mode_validation():
-    """Verify personality mode validation and normalization."""
+    """Verify personality mode validation and normalization to unified comedy."""
     pm = PersonalityManager()
 
-    assert pm.validate_mode("always_funny") == "always_funny"
-    assert pm.validate_mode("funny") == "always_funny"
-    assert pm.validate_mode("ALWAYS_FUNNY") == "always_funny"
-
-    assert pm.validate_mode("roast_companion") == "roast_companion"
-    assert pm.validate_mode("roast") == "roast_companion"
-    assert pm.validate_mode("ROAST_COMPANION") == "roast_companion"
-
-    with pytest.raises(ValueError, match="Unsupported personality mode"):
-        pm.validate_mode("serious_lawyer")
+    assert pm.validate_mode("always_funny") == "unified_comedy"
+    assert pm.validate_mode("funny") == "unified_comedy"
+    assert pm.validate_mode("roast_companion") == "unified_comedy"
+    assert pm.validate_mode("roast") == "unified_comedy"
+    assert pm.validate_mode("unified_comedy") == "unified_comedy"
+    assert pm.validate_mode(None) == "unified_comedy"
 
 
 # ------------------------------------------------------------------------------
 # 2. System Prompt Loading & Caching
 # ------------------------------------------------------------------------------
 def test_system_prompt_loading():
-    """Verify loading of system prompts for funny and roast modes."""
+    """Verify loading of system prompts for unified comedy personality."""
     pm = PersonalityManager()
 
-    funny_prompt = pm.get_system_prompt("always_funny")
-    assert "LaughBot" in funny_prompt
-    assert "creative and entertaining AI comedy companion" in funny_prompt
-    assert "Behavior:" in funny_prompt or "Rules:" in funny_prompt
-
-    roast_prompt = pm.get_system_prompt("roast_companion")
-    assert "Roast Companion" in roast_prompt
-    assert "savage and entertaining roasts" in roast_prompt or "Roast Companion" in roast_prompt
-    assert "Rules:" in roast_prompt or "Behavior:" in roast_prompt
+    prompt = pm.get_system_prompt()
+    assert "TheONE AI" in prompt
+    assert "comedy-first" in prompt or "funny" in prompt
+    assert "unified personality" in prompt.lower()
+    assert "MANDATORY RESPONSE RULES" in prompt
 
 
 def test_system_prompt_caching():
@@ -224,13 +216,13 @@ def test_intelligence_pipeline_orchestration_mocked():
     result = asyncio.run(engine.process_turn(
         message="I woke up late today",
         conversation_id="conv_test_1",
-        mode="always_funny",
+        mode="unified_comedy",
     ))
 
     assert result.success is True
     assert result.user_message == "I woke up late today"
     assert result.assistant_response == "Your alarm clock has officially resigned. 😂"
-    assert result.mode == "always_funny"
+    assert result.mode == "unified_comedy"
 
     # Verify conversation history was persisted
     session = cm.get_conversation("conv_test_1")
@@ -248,8 +240,7 @@ def test_chat_health_endpoint():
     assert res.status_code == 200
     data = res.json()
     assert data["intelligence_engine"] == "active"
-    assert "always_funny" in data["supported_modes"]
-    assert "roast_companion" in data["supported_modes"]
+    assert "unified_comedy" in data["supported_modes"]
 
 
 def test_chat_unconfigured_provider_returns_503():
@@ -258,7 +249,7 @@ def test_chat_unconfigured_provider_returns_503():
     with patch.object(GeminiService, "is_configured", new_callable=PropertyMock, return_value=False):
         res = client.post(
             "/api/v1/chat",
-            json={"message": "I woke up late", "mode": "always_funny"},
+            json={"message": "I woke up late", "mode": "unified_comedy"},
         )
         assert res.status_code == 503
         assert "not configured" in res.json()["error"].lower()
@@ -275,18 +266,18 @@ def test_chat_endpoint_mocked_success():
         ):
             res = client.post(
                 "/api/v1/chat",
-                json={"message": "Tell me a joke", "mode": "always_funny"},
+                json={"message": "Tell me a joke", "mode": "unified_comedy"},
             )
             assert res.status_code == 200
             data = res.json()
             assert data["success"] is True
             assert data["assistant_response"] == "Mocked comedy response"
-            assert data["mode"] == "always_funny"
+            assert data["mode"] == "unified_comedy"
             assert "conversation_id" in data
 
 
 def test_chat_switch_mode_endpoint():
-    """Verify POST /api/v1/chat/switch-mode switches active personality."""
+    """Verify POST /api/v1/chat/switch-mode maintains unified comedy personality."""
     res = client.post(
         "/api/v1/chat/switch-mode",
         json={"conversation_id": "test_conv_mode", "mode": "roast_companion"},
@@ -294,7 +285,7 @@ def test_chat_switch_mode_endpoint():
     assert res.status_code == 200
     data = res.json()
     assert data["success"] is True
-    assert data["mode"] == "roast_companion"
+    assert data["mode"] == "unified_comedy"
 
 
 def test_chat_clear_endpoint():

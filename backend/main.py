@@ -125,7 +125,7 @@ class ChatRequest(BaseModel):
     """Request payload for intelligence conversation turns."""
     conversation_id: Optional[str] = Field(default=None, description="Existing conversation ID or null for new")
     message: str = Field(..., min_length=1, max_length=2000, description="User message text")
-    mode: str = Field(default="always_funny", description="Personality mode: 'always_funny' or 'roast_companion'")
+    mode: str = Field(default="unified_comedy", description="Personality mode: 'unified_comedy'")
     language: str = Field(default="en", description="Language code")
 
 
@@ -137,13 +137,13 @@ class ClearChatRequest(BaseModel):
 class SwitchModeRequest(BaseModel):
     """Request payload for switching personality mode."""
     conversation_id: str = Field(..., min_length=1, description="Target conversation ID")
-    mode: str = Field(..., min_length=1, description="New personality mode ('always_funny' or 'roast_companion')")
+    mode: str = Field(default="unified_comedy", description="Personality mode")
 
 
 class TTSRequest(BaseModel):
     """Request payload for Text-to-Speech synthesis via Gnani Timbre."""
     text: str = Field(..., min_length=1, max_length=4000, description="Text to synthesize into speech")
-    mode: Optional[str] = Field(default="always_funny", description="Personality mode ('always_funny' or 'roast_companion')")
+    mode: Optional[str] = Field(default="unified_comedy", description="Personality mode ('unified_comedy')")
     voice: Optional[str] = Field(default=None, description="Explicit voice override (e.g., Yashvi, Zayan)")
     language: Optional[str] = Field(default=None, description="Language code (defaults to en-IN)")
     speed: Optional[float] = Field(default=None, ge=0.5, le=2.0, description="Speech speed multiplier")
@@ -488,25 +488,21 @@ async def clear_chat(request: ClearChatRequest) -> Dict[str, Any]:
 
 @app.post(
     "/api/v1/chat/switch-mode",
-    summary="Switch Personality Mode",
+    summary="Switch Personality Mode (Unified Comedy)",
     tags=["Intelligence Engine"],
 )
 async def switch_mode(request: SwitchModeRequest) -> Dict[str, Any]:
     """
-    Switch personality mode ('always_funny' or 'roast_companion') for an existing
-    conversation while preserving past message history.
+    Maintains compatibility for switch-mode calls, mapping all requests
+    to TheONE AI's unified comedy personality.
     """
-    try:
-        valid_mode = personality_manager.validate_mode(request.mode)
-    except ValueError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
-
+    valid_mode = personality_manager.validate_mode(request.mode)
     conversation_manager.switch_mode(request.conversation_id, valid_mode)
     return {
         "success": True,
         "conversation_id": request.conversation_id,
         "mode": valid_mode,
-        "message": f"Personality switched to '{valid_mode}'.",
+        "message": f"TheONE AI unified comedy personality active.",
     }
 
 

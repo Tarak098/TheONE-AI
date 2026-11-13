@@ -17,7 +17,8 @@
 // Application State
 // =============================================================================
 const state = {
-  activeMode: 'always_funny', // 'always_funny' | 'roast_companion'
+  activeMode: 'unified_comedy',
+  activeVoice: 'Yashvi', // 'Yashvi' | 'Zayan' (independent of humour style)
   conversationId: null,
   orbState: 'idle', // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
   isRecording: false,
@@ -32,10 +33,6 @@ const state = {
   pcmChunks: [],
   timerInterval: null,
   recordingStartTime: null,
-  selectedVoices: {
-    always_funny: 'Yashvi',
-    roast_companion: 'Zayan',
-  },
   transcriptCount: 0,
   currentAmplitude: 0.0,
   apiBaseUrl: window.location.protocol.startsWith('http')
@@ -45,11 +42,9 @@ const state = {
 
 // Load persisted voice preferences
 try {
-  const savedVoices = localStorage.getItem('theone_mode_voices') || localStorage.getItem('laughbot_mode_voices');
-  if (savedVoices) {
-    const parsed = JSON.parse(savedVoices);
-    if (parsed.always_funny) state.selectedVoices.always_funny = parsed.always_funny;
-    if (parsed.roast_companion) state.selectedVoices.roast_companion = parsed.roast_companion;
+  const savedVoice = localStorage.getItem('theone_voice') || localStorage.getItem('theone_selected_voice');
+  if (savedVoice && (savedVoice === 'Yashvi' || savedVoice === 'Zayan')) {
+    state.activeVoice = savedVoice;
   }
 } catch (_) {}
 
@@ -71,8 +66,8 @@ const backendStatusText = document.getElementById('backend-status-text');
 const ttsVoiceBadge = document.getElementById('tts-voice-badge');
 const ttsVoiceBadgeText = document.getElementById('tts-voice-badge-text');
 
-const btnModeFunny = document.getElementById('btn-mode-funny');
-const btnModeRoast = document.getElementById('btn-mode-roast');
+const btnNavVoiceYashvi = document.getElementById('btn-nav-voice-yashvi');
+const btnNavVoiceZayan = document.getElementById('btn-nav-voice-zayan');
 
 const btnMic = document.getElementById('btn-mic');
 const chatForm = document.getElementById('chat-form');
@@ -171,9 +166,7 @@ function setOrbState(newState, customStatus, customSubstatus) {
 
     case 'thinking':
       statusText = 'Thinking...';
-      substatusText = state.activeMode === 'roast_companion'
-        ? 'TheONE AI is crafting a savage comeback...'
-        : 'TheONE AI is writing a snappy punchline...';
+      substatusText = 'TheONE AI is crafting a witty comeback...';
       if (recordingTimer) recordingTimer.style.display = 'none';
       break;
 
@@ -220,13 +213,6 @@ function resizeCanvas() {
 }
 
 function getActiveAccentColors() {
-  if (state.activeMode === 'roast_companion') {
-    return {
-      primary: 'rgba(244, 63, 94, ', // Rose / Neon Coral
-      secondary: 'rgba(249, 115, 22, ', // Fiery Orange
-      tertiary: 'rgba(168, 85, 247, ', // Purple
-    };
-  }
   return {
     primary: 'rgba(6, 182, 212, ', // Electric Cyan
     secondary: 'rgba(59, 130, 246, ', // Electric Blue
@@ -352,16 +338,22 @@ function renderCanvasLoop() {
 // =============================================================================
 // Voice Selection Management (Independent Per Mode)
 // =============================================================================
+// Voice Selection Management (Independent of Humour Style)
+// =============================================================================
 function getActiveVoice() {
-  return state.selectedVoices[state.activeMode] || (state.activeMode === 'roast_companion' ? 'Zayan' : 'Yashvi');
+  return state.activeVoice || 'Yashvi';
 }
 
 function updateVoiceUI() {
   const currentVoice = getActiveVoice();
-  if (voiceModeLabel) {
-    voiceModeLabel.textContent = state.activeMode === 'roast_companion' ? 'Roast Companion' : 'Always Funny';
+
+  // Update navigation voice pills
+  if (btnNavVoiceYashvi && btnNavVoiceZayan) {
+    btnNavVoiceYashvi.classList.toggle('active', currentVoice === 'Yashvi');
+    btnNavVoiceZayan.classList.toggle('active', currentVoice === 'Zayan');
   }
 
+  // Update settings drawer cards
   voiceOptionCards.forEach((card) => {
     const cardVoice = card.dataset.voice;
     const statusPill = card.querySelector('.voice-status-pill');
@@ -378,65 +370,18 @@ function updateVoiceUI() {
     const genderTag = currentVoice === 'Yashvi' ? 'Female' : 'Male';
     ttsVoiceBadgeText.textContent = `${currentVoice} (${genderTag})`;
     if (ttsVoiceBadge) {
-      ttsVoiceBadge.title = `Gnani Timbre Voice: ${currentVoice} (${genderTag})`;
+      ttsVoiceBadge.title = `Active Gnani Timbre Voice: ${currentVoice} (${genderTag})`;
     }
   }
 }
 
 function selectVoice(voiceName) {
   if (!voiceName) return;
-  state.selectedVoices[state.activeMode] = voiceName;
+  state.activeVoice = voiceName;
   try {
-    localStorage.setItem('theone_mode_voices', JSON.stringify(state.selectedVoices));
+    localStorage.setItem('theone_voice', voiceName);
   } catch (_) {}
   updateVoiceUI();
-}
-
-// =============================================================================
-// Personality Switching (Always Funny vs Roast Companion)
-// =============================================================================
-async function switchPersonality(mode) {
-  if (state.activeMode === mode) return;
-  state.activeMode = mode;
-
-  const isRoast = mode === 'roast_companion';
-  document.body.className = isRoast ? 'theme-roast dark-mode' : 'theme-funny dark-mode';
-
-  if (btnModeRoast && btnModeFunny) {
-    btnModeRoast.classList.toggle('active', isRoast);
-    btnModeFunny.classList.toggle('active', !isRoast);
-  }
-
-  if (brandAvatar) {
-    brandAvatar.textContent = isRoast ? '🔥' : '✨';
-  }
-
-  if (floatModePill) {
-    floatModePill.textContent = isRoast ? 'Roast Companion' : 'Always Funny';
-    floatModePill.className = `transcript-mode-pill ${isRoast ? 'tag-roast' : 'tag-funny'}`;
-  }
-
-  // Update voice selector UI for this mode
-  updateVoiceUI();
-
-  // If currently idle, refresh status text
-  if (state.orbState === 'idle') {
-    setOrbState('idle');
-  }
-
-  // Backend session sync if session exists
-  if (state.conversationId) {
-    try {
-      await fetch(`${state.apiBaseUrl}/api/v1/chat/switch-mode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversation_id: state.conversationId,
-          mode: state.activeMode,
-        }),
-      });
-    } catch (_) {}
-  }
 }
 
 // =============================================================================
@@ -511,13 +456,13 @@ async function synthesizeAndPlayAudio(bubble, text, mode) {
   }
 
   try {
-    const activeVoice = state.selectedVoices[mode] || getActiveVoice();
+    const activeVoice = getActiveVoice();
     const res = await fetch(`${state.apiBaseUrl}/api/v1/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: text,
-        mode: mode,
+        mode: 'unified_comedy',
         voice: activeVoice,
         language: languageSelect ? languageSelect.value : 'en-IN',
       }),
@@ -646,9 +591,8 @@ function updateFloatingTranscript(userText, botText, mode) {
   if (floatBotText) floatBotText.textContent = botText;
 
   if (floatModePill) {
-    const isRoast = mode === 'roast_companion';
-    floatModePill.textContent = isRoast ? 'Roast Companion' : 'Always Funny';
-    floatModePill.className = `transcript-mode-pill ${isRoast ? 'tag-roast' : 'tag-funny'}`;
+    floatModePill.textContent = 'TheONE AI';
+    floatModePill.className = 'transcript-mode-pill tag-comedy';
   }
 
   floatingTranscript.style.display = 'flex';
@@ -667,12 +611,12 @@ function appendMessageBubble(role, content, mode, model) {
   const bubble = document.createElement('div');
   bubble.className = `chat-bubble ${isBot ? 'bot-bubble' : 'user-bubble'}`;
 
-  const avatar = isBot ? (mode === 'roast_companion' ? '🔥' : '✨') : '👤';
-  const senderName = isBot ? (mode === 'roast_companion' ? 'Roast Companion' : 'TheONE AI') : 'You';
-  const tagClass = mode === 'roast_companion' ? 'tag-roast' : 'tag-funny';
-  const tagLabel = mode === 'roast_companion' ? 'Roast' : 'Funny';
+  const avatar = isBot ? '✨' : '👤';
+  const senderName = isBot ? 'TheONE AI' : 'You';
+  const tagClass = 'tag-comedy';
+  const tagLabel = 'Comedy AI';
   const modelText = model ? ` • ${model}` : '';
-  const initialVoiceName = mode === 'roast_companion' ? 'Zayan' : 'Yashvi';
+  const initialVoiceName = getActiveVoice();
 
   const footerHtml = isBot ? `
     <div class="bubble-footer">
@@ -1048,9 +992,9 @@ function toggleTheme() {
 // Event Handlers & Initialization
 // =============================================================================
 function setupEventListeners() {
-  // Mode selection
-  if (btnModeFunny) btnModeFunny.addEventListener('click', () => switchPersonality('always_funny'));
-  if (btnModeRoast) btnModeRoast.addEventListener('click', () => switchPersonality('roast_companion'));
+  // Voice selection (Yashvi & Zayan) in top nav
+  if (btnNavVoiceYashvi) btnNavVoiceYashvi.addEventListener('click', () => selectVoice('Yashvi'));
+  if (btnNavVoiceZayan) btnNavVoiceZayan.addEventListener('click', () => selectVoice('Zayan'));
 
   // The Orb click toggles voice conversation
   if (voiceOrb) {

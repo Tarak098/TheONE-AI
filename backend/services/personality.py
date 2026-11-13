@@ -1,8 +1,9 @@
 """
-LaughBot AI - Personality Management Service.
+TheONE AI - Final Unified Comedy Personality Management Service.
 
-Manages conversational personalities, system prompt resolution,
-and personality mode switching for Always Funny and Roast Companion modes.
+TheONE AI has ONE unified personality: ALWAYS funny, sarcastic, witty, and entertaining.
+The conversational style adapts dynamically to the user's message, while the core
+comedy-first identity never changes.
 """
 
 from enum import Enum
@@ -12,19 +13,18 @@ from typing import Dict, List, Optional
 
 from backend.config import get_settings
 
-logger = logging.getLogger("laughbot.personality")
+logger = logging.getLogger("theone.personality")
 
 
 class PersonalityMode(str, Enum):
-    """Supported personality modes for LaughBot AI."""
-    ALWAYS_FUNNY = "always_funny"
-    ROAST_COMPANION = "roast_companion"
+    """Unified comedy personality mode for TheONE AI."""
+    UNIFIED_COMEDY = "unified_comedy"
 
 
 class PersonalityManager:
     """
-    Manages loading, caching, and resolution of personality system prompts.
-    Ensures safe mode switching while preserving conversational context.
+    Manages loading, caching, and resolution of TheONE AI's unified comedy system prompt.
+    Adapts comedy style dynamically without separate mode divisions.
     """
 
     def __init__(self, prompts_dir: Optional[Path] = None) -> None:
@@ -34,69 +34,57 @@ class PersonalityManager:
 
     @classmethod
     def get_supported_modes(cls) -> List[str]:
-        """Return a list of all supported personality mode keys."""
-        return [mode.value for mode in PersonalityMode]
+        """Return the unified personality identifier."""
+        return [PersonalityMode.UNIFIED_COMEDY.value]
 
-    def validate_mode(self, mode: str) -> str:
+    def validate_mode(self, mode: Optional[str] = None) -> str:
         """
-        Validate and normalize a personality mode string.
+        Validate and normalize personality mode to the single unified comedy personality.
+        Gracefully accepts legacy aliases ('always_funny', 'roast_companion') and normalizes
+        them to 'unified_comedy'.
 
         Args:
-            mode: Candidate mode string.
+            mode: Candidate mode string or None.
 
         Returns:
-            Normalized mode string ('always_funny' or 'roast_companion').
-
-        Raises:
-            ValueError: If mode is not supported.
+            str: 'unified_comedy'
         """
-        normalized = mode.strip().lower() if mode else ""
-        # Support aliases like 'funny' -> 'always_funny', 'roast' -> 'roast_companion'
-        if normalized in ("funny", "always_funny"):
-            return PersonalityMode.ALWAYS_FUNNY.value
-        elif normalized in ("roast", "roast_companion"):
-            return PersonalityMode.ROAST_COMPANION.value
+        # TheONE AI has ONE unified personality. All inputs resolve to unified_comedy.
+        return PersonalityMode.UNIFIED_COMEDY.value
 
-        supported = ", ".join(self.get_supported_modes())
-        raise ValueError(f"Unsupported personality mode '{mode}'. Supported modes: {supported}")
+    def get_prompt_file_path(self, mode: Optional[str] = None) -> Path:
+        """Resolve filesystem path for the unified comedy prompt file."""
+        unified_path = self.prompts_dir / "unified_comedy.txt"
+        if unified_path.exists():
+            return unified_path
+        # Fallback to funny_mode.txt if unified file is missing
+        return self.prompts_dir / "funny_mode.txt"
 
-    def get_prompt_file_path(self, mode: str) -> Path:
-        """Resolve filesystem path for a mode's prompt file."""
-        validated_mode = self.validate_mode(mode)
-        if validated_mode == PersonalityMode.ALWAYS_FUNNY.value:
-            return self.prompts_dir / "funny_mode.txt"
-        elif validated_mode == PersonalityMode.ROAST_COMPANION.value:
-            return self.prompts_dir / "roast_mode.txt"
-        else:
-            raise ValueError(f"No prompt file mapped for mode: {mode}")
-
-    def get_system_prompt(self, mode: str) -> str:
+    def get_system_prompt(self, mode: Optional[str] = None) -> str:
         """
-        Retrieve the system prompt for the specified personality mode,
-        using memory caching for efficient repeated retrieval.
+        Retrieve TheONE AI's unified comedy system prompt using memory caching.
 
         Args:
-            mode: 'always_funny' or 'roast_companion'.
+            mode: Optional mode parameter (defaults to unified_comedy).
 
         Returns:
-            str: Complete system prompt instructions.
+            str: Complete unified comedy system prompt.
         """
-        validated_mode = self.validate_mode(mode)
+        normalized_mode = self.validate_mode(mode)
         settings = get_settings()
-        if not settings.DEBUG and validated_mode in self._prompt_cache:
-            return self._prompt_cache[validated_mode]
+        if not settings.DEBUG and normalized_mode in self._prompt_cache:
+            return self._prompt_cache[normalized_mode]
 
-        prompt_path = self.get_prompt_file_path(validated_mode)
+        prompt_path = self.get_prompt_file_path(normalized_mode)
         if not prompt_path.exists():
-            logger.error("System prompt file not found at path: %s", prompt_path)
+            logger.error("Unified comedy prompt file not found at path: %s", prompt_path)
             raise FileNotFoundError(f"Personality prompt file not found: {prompt_path}")
 
         prompt_content = prompt_path.read_text(encoding="utf-8").strip()
-        self._prompt_cache[validated_mode] = prompt_content
-        logger.debug("Loaded and cached prompt for mode '%s' (%d chars)", validated_mode, len(prompt_content))
+        self._prompt_cache[normalized_mode] = prompt_content
+        logger.debug("Loaded unified comedy prompt (%d chars)", len(prompt_content))
         return prompt_content
 
     def clear_cache(self) -> None:
         """Clear cached system prompts (useful in tests or when prompt files change)."""
         self._prompt_cache.clear()
-

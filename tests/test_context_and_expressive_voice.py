@@ -1,28 +1,20 @@
 """
-TheONE AI - 30-Message Context-Aware Humour & Voice Expressiveness Test Suite.
-
-Covers:
-1. Ordinary conversations
-2. Questions
-3. Personal achievements
-4. Failures and mistakes
-5. Daily activities
-6. Sarcastic interactions
-7. Roast requests
-8. Ambiguous messages
-9. Serious / Sensitive messages
+TheONE AI - 30-Message Unified Comedy Personality & Voice Test Suite.
 
 Verifies:
-- Maximum ONE sentence per response
-- Maximum 15 words (preferred 3-10 words)
-- Direct contextual relevance (zero disconnected generic insults)
-- Sensitive message compassionate handling
-- Expressive voice synthesis with Yashvi and Zayan (prosody, pauses, speed)
+1. One Unified Personality (ALWAYS funny, sarcastic, witty, entertaining regardless of user mood).
+2. Mood-Independent Adaptive Comedy (bored, angry, failing, celebrating, confused, factual).
+3. Contextual relevance & zero generic stock insults.
+4. Strict length constraint (strictly 1 sentence, <= 15 words, preferred 3-10 words).
+5. No supportive or serious assistant mode appears.
+6. Sensitive topics handled with gentle, non-insensitive humour without dropping character.
+7. Independent voice synthesis with Yashvi and Zayan.
 """
 
 import pytest
 
 from backend.services.intelligence import IntelligenceEngine
+from backend.services.personality import PersonalityManager
 from backend.services.response_validator import (
     count_sentences,
     count_words,
@@ -31,88 +23,111 @@ from backend.services.response_validator import (
 )
 from backend.services.timbre import TimbreService
 
-# 30 Diverse Test Messages across all 9 specified categories
+# 30 Diverse Test Messages across different topics and emotional contexts
 TEST_SCENARIOS = [
-    # 1. Ordinary Conversations
-    {"category": "ordinary", "mode": "always_funny", "input": "I'm having a quiet cup of green tea."},
-    {"category": "ordinary", "mode": "always_funny", "input": "The traffic was surprisingly smooth this morning."},
-    {"category": "ordinary", "mode": "always_funny", "input": "I finally cleaned up my messy room."},
+    # 1. User Mood: Boredom (User Example 1)
+    {"category": "boredom", "input": "I'm feeling bored."},
+    {"category": "boredom", "input": "Nothing interesting is happening in my life."},
 
-    # 2. Questions
-    {"category": "question", "mode": "always_funny", "input": "What should I eat for dinner tonight?"},
-    {"category": "question", "mode": "always_funny", "input": "Why do cats sleep twenty hours a day?"},
-    {"category": "question", "mode": "roast_companion", "input": "Where can I find the fountain of eternal youth?"},
-    {"category": "question", "mode": "roast_companion", "input": "What is the secret to getting rich without working?"},
+    # 2. User Mood: Failure / Mistake (User Example 2)
+    {"category": "failure", "input": "I failed my exam."},
+    {"category": "failure", "input": "I completely burned my dinner to charcoal."},
+    {"category": "failure", "input": "I accidentally replied-all to the whole company."},
 
-    # 3. Personal Achievements
-    {"category": "achievement", "mode": "always_funny", "input": "I got selected for my dream job interview!"},
-    {"category": "achievement", "mode": "always_funny", "input": "I ran a full 5k marathon without stopping."},
-    {"category": "achievement", "mode": "roast_companion", "input": "I got promoted to senior lead developer today!"},
-    {"category": "achievement", "mode": "roast_companion", "input": "My startup just got its very first paying customer."},
+    # 3. User Mood: Anger / Frustration (User Example 3)
+    {"category": "anger", "input": "I'm very angry today."},
+    {"category": "anger", "input": "My Wi-Fi keeps disconnecting every five minutes."},
+    {"category": "anger", "input": "People who chew loudly are driving me insane."},
 
-    # 4. Failures & Mistakes
-    {"category": "mistake", "mode": "always_funny", "input": "I lost my car keys inside the house again."},
-    {"category": "mistake", "mode": "always_funny", "input": "I accidentally put salt in my coffee instead of sugar."},
-    {"category": "mistake", "mode": "roast_companion", "input": "I accidentally sent an email to the entire company."},
-    {"category": "mistake", "mode": "roast_companion", "input": "I completely burned my dinner to charcoal."},
+    # 4. User Mood: Celebration / Achievement (User Example 4)
+    {"category": "achievement", "input": "I got selected!"},
+    {"category": "achievement", "input": "I ran a full 5k marathon without stopping."},
+    {"category": "achievement", "input": "I got promoted to senior lead developer today!"},
 
-    # 5. Daily Activities
-    {"category": "daily", "mode": "always_funny", "input": "I hit the snooze button four times this morning."},
-    {"category": "daily", "mode": "always_funny", "input": "I have forty browser tabs open and I need all of them."},
-    {"category": "daily", "mode": "roast_companion", "input": "I have been scrolling social media for three hours."},
-    {"category": "daily", "mode": "roast_companion", "input": "I'm standing in a never-ending grocery checkout line."},
+    # 5. User Mood: Confusion / Learning (User Example 5)
+    {"category": "confusion", "input": "I don't understand this topic."},
+    {"category": "confusion", "input": "Quantum physics makes absolutely no sense to me."},
+    {"category": "confusion", "input": "Wait, what does that word even mean?"},
 
-    # 6. Sarcastic Interactions
-    {"category": "sarcastic", "mode": "always_funny", "input": "I am definitely the most patient driver on the road."},
-    {"category": "sarcastic", "mode": "always_funny", "input": "I love doing complicated tax forms on weekends."},
-    {"category": "sarcastic", "mode": "roast_companion", "input": "My cooking skills are basically Michelin star level."},
-    {"category": "sarcastic", "mode": "roast_companion", "input": "I am basically the undisputed genius of this household."},
+    # 6. Factual Questions (Accurate fact with humorous delivery)
+    {"category": "factual", "input": "What is photosynthesis?"},
+    {"category": "factual", "input": "Tell me a real fact about outer space."},
+    {"category": "factual", "input": "Why do cats sleep so many hours a day?"},
+    {"category": "factual", "input": "How many days are in a leap year?"},
 
-    # 7. Roast Requests
-    {"category": "roast_request", "mode": "roast_companion", "input": "Roast me, give me your best shot."},
-    {"category": "roast_request", "mode": "roast_companion", "input": "Destroy my ego with a single sentence."},
+    # 7. Boasting / Confidence
+    {"category": "boast", "input": "I am basically the undisputed genius of this household."},
+    {"category": "boast", "input": "My cooking skills are Michelin star level."},
 
-    # 8. Ambiguous Messages
-    {"category": "ambiguous", "mode": "always_funny", "input": "Wait, what?"},
-    {"category": "ambiguous", "mode": "roast_companion", "input": "Seriously?"},
+    # 8. Daily Habits & Procrastination
+    {"category": "habits", "input": "I hit the snooze button five times this morning."},
+    {"category": "habits", "input": "I have forty browser tabs open and I need all of them."},
+    {"category": "habits", "input": "I have been scrolling reels for three straight hours."},
 
-    # 9. Serious / Sensitive Messages
-    {"category": "serious", "mode": "always_funny", "input": "My grandfather passed away peacefully this morning."},
-    {"category": "serious", "mode": "roast_companion", "input": "I was diagnosed with a serious medical illness today."},
-    {"category": "serious", "mode": "roast_companion", "input": "My beloved dog died yesterday and I'm heartbroken."},
+    # 9. Roast Requests
+    {"category": "roast_request", "input": "Roast me, give me your sharpest comeback."},
+    {"category": "roast_request", "input": "Destroy my ego with a single punchline."},
+
+    # 10. Ordinary Daily Events
+    {"category": "ordinary", "input": "I'm having a quiet cup of green tea."},
+    {"category": "ordinary", "input": "I lost my car keys inside my own house again."},
+
+    # 11. Sensitive Contexts (Gentle, non-insensitive humour; NEVER a dry assistant)
+    {"category": "sensitive", "input": "My grandfather passed away peacefully this morning."},
+    {"category": "sensitive", "input": "I was diagnosed with a serious medical illness today."},
+    {"category": "sensitive", "input": "My beloved dog died yesterday and I miss him."},
 ]
 
 
 def test_scenario_count():
-    """Ensure exactly 30 test scenarios are defined across all required categories."""
+    """Ensure exactly 30 test scenarios are defined covering all mood and topic spectrums."""
     assert len(TEST_SCENARIOS) == 30
     categories = {s["category"] for s in TEST_SCENARIOS}
-    assert "ordinary" in categories
-    assert "question" in categories
+    assert "boredom" in categories
+    assert "failure" in categories
+    assert "anger" in categories
     assert "achievement" in categories
-    assert "mistake" in categories
-    assert "daily" in categories
-    assert "sarcastic" in categories
+    assert "confusion" in categories
+    assert "factual" in categories
+    assert "boast" in categories
+    assert "habits" in categories
     assert "roast_request" in categories
-    assert "ambiguous" in categories
-    assert "serious" in categories
+    assert "ordinary" in categories
+    assert "sensitive" in categories
 
 
-def test_timbre_expressive_voice_enhancements():
+def test_personality_manager_unified():
+    """Verify that PersonalityManager enforces ONE unified personality."""
+    manager = PersonalityManager()
+    assert manager.get_supported_modes() == ["unified_comedy"]
+    assert manager.validate_mode("always_funny") == "unified_comedy"
+    assert manager.validate_mode("roast_companion") == "unified_comedy"
+    assert manager.validate_mode(None) == "unified_comedy"
+    assert manager.validate_mode("anything") == "unified_comedy"
+
+    prompt = manager.get_system_prompt()
+    assert "ONE single, unified personality: ALWAYS funny" in prompt
+    assert "Even boredom is bored of you" in prompt
+    assert "Your exam paper won this round" in prompt
+    assert "Should I inform your patience department" in prompt
+    assert "Finally, your talent escaped captivity" in prompt
+    assert "Your brain is buffering" in prompt
+
+
+def test_timbre_independent_voices():
     """
-    Verify voice delivery requirements:
-    - Yashvi (Always Funny): speed 1.04, upbeat prosody
-    - Zayan (Roast Companion): speed 0.98, dramatic pause (...) prosody
-    - Audio tag safety: Unsupported tags stripped cleanly so they are never spoken aloud
+    Verify voice selection independence:
+    - Both Yashvi (Female) and Zayan (Male) work in full capacity for unified comedy.
+    - Speed prosody matches the selected voice (Yashvi ~1.04, Zayan ~0.98).
+    - Audio tag safety is enforced.
     """
     service = TimbreService()
     if not service.is_configured:
         pytest.skip("Timbre service unconfigured.")
 
-    # 1. Test Yashvi - Upbeat Funny
+    # 1. Test Yashvi Voice
     res_yashvi = service.synthesize_speech(
-        text="Finally, your resume escaped captivity! <laugh>",
-        mode="always_funny",
+        text="Even boredom is bored of you! <laugh>",
         voice="Yashvi",
     )
     assert res_yashvi.voice == "Yashvi"
@@ -120,10 +135,9 @@ def test_timbre_expressive_voice_enhancements():
     assert len(res_yashvi.audio_bytes) > 1000
     assert res_yashvi.audio_bytes.startswith(b"RIFF")
 
-    # 2. Test Zayan - Deadpan Sarcastic Roast with Dramatic Pause
+    # 2. Test Zayan Voice
     res_zayan = service.synthesize_speech(
-        text="Tomorrow called... it blocked your number.",
-        mode="roast_companion",
+        text="Your exam paper won this round... better luck next time.",
         voice="Zayan",
     )
     assert res_zayan.voice == "Zayan"
@@ -133,13 +147,13 @@ def test_timbre_expressive_voice_enhancements():
 
 
 @pytest.mark.parametrize("scenario", TEST_SCENARIOS, ids=[f"{s['category']}_{i+1}" for i, s in enumerate(TEST_SCENARIOS)])
-def test_all_30_messages_context_and_length(scenario):
+def test_all_30_messages_unified_comedy(scenario):
     """
     Live test all 30 scenarios through IntelligenceEngine:
-    - 1 sentence maximum
-    - <= 15 words (prefer 3-10)
-    - Valid context relevance
-    - Sensitive message safe handling
+    - Exactly 1 sentence
+    - <= 15 words
+    - Context-aligned comedy
+    - Never breaks into a dry, serious, or supportive assistant
     """
     import asyncio
     engine = IntelligenceEngine()
@@ -147,36 +161,42 @@ def test_all_30_messages_context_and_length(scenario):
         pytest.skip("Gemini API not configured.")
 
     msg = scenario["input"]
-    mode = scenario["mode"]
     category = scenario["category"]
 
     async def _test_turn():
-        await asyncio.sleep(0.8)  # Gentle pacing for free-tier quota
+        await asyncio.sleep(0.8)  # Free-tier rate pacing
         turn = await engine.process_turn(
             message=msg,
-            mode=mode,
-            conversation_id=f"test_30_{category}_{hash(msg) % 10000}",
+            conversation_id=f"test_unified_{category}_{abs(hash(msg)) % 10000}",
         )
         reply = turn.assistant_response
 
-        # 1. Word count & sentence count verification
+        # 1. Sentence and word count constraints
         sentences = count_sentences(reply)
         words = count_words(reply)
 
-        print(f"\n[{category.upper()} | {mode}] User: {msg!r} -> AI: {reply!r} ({words} words, {sentences} sentence)")
+        print(f"\n[{category.upper()}] User: {msg!r} -> AI: {reply!r} ({words} words, {sentences} sentence)")
 
         assert sentences <= 1, f"Expected 1 sentence but got {sentences}: {reply}"
         assert words <= 15, f"Expected <= 15 words but got {words}: {reply}"
 
         # 2. Quality & Context validation
-        is_valid, reason = validate_response_quality(msg, reply, mode=mode)
+        is_valid, reason = validate_response_quality(msg, reply, mode="unified_comedy")
         assert is_valid, f"Quality check failed for {msg!r} -> {reply!r}: {reason}"
 
-        # 3. Serious message handling verification
-        if category == "serious":
-            assert is_sensitive_message(msg) is True
-            lower_reply = reply.lower()
-            mocking_words = ["haha", "loser", "potato", "clown", "stupid"]
-            assert not any(w in lower_reply for w in mocking_words), f"Serious message was mocked: {reply}"
+        # 3. Check that it NEVER sounds like a dry, generic corporate assistant
+        boring_phrases = [
+            "how can i help", "as an ai", "i am an artificial intelligence",
+            "i cannot provide", "i understand that you are feeling",
+            "i am here to assist", "please consult a professional"
+        ]
+        lower_reply = reply.lower()
+        for phrase in boring_phrases:
+            assert phrase not in lower_reply, f"Response slipped into boring assistant mode: {reply}"
+
+        # 4. Sensitive situations: Gentle lightheartedness without cruel mocking
+        if category == "sensitive":
+            cruel_words = ["haha", "loser", "potato", "clown", "stupid", "idiot"]
+            assert not any(w in lower_reply for w in cruel_words), f"Sensitive topic cruelly mocked: {reply}"
 
     asyncio.run(_test_turn())

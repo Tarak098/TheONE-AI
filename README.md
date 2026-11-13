@@ -13,22 +13,24 @@
 ### 🌐 Live Production Application
 🔗 **[https://theone-ai.onrender.com](https://theone-ai.onrender.com)**
 
-Experience real-time expressive voice interaction with dual personality modes (`Always Funny` & `Roast Companion`), real-time voice orb visualizer, and selectable Indian neural voices (Yashvi & Zayan).
+Experience real-time expressive voice interaction with the **Unified Comedy Personality**, audio-reactive Voice Orb, and selectable Indian neural voices (**Yashvi** & **Zayan**).
 
 ---
 
 ## 🌟 Overview
 
-**TheONE AI** is designed around a central, animated **Voice Orb** that visualizes voice interactions in real time. It delivers razor-sharp, hilarious, or sarcastic comebacks while adhering to a strict **one-sentence response limit** ($\le 15$ words).
+**TheONE AI** is designed around a central, animated **Voice Orb** that visualizes voice interactions in real time. It features a single, unified comedy-first identity: it is **ALWAYS** funny, sarcastic, witty, and entertaining, regardless of the user's mood. It adheres to a strict **one-sentence response limit** ($\le 15$ words) to deliver maximum comedic timing without unnecessary filler.
 
 ### ✨ Key Features
 - **Central Voice Orb**: 5-state animated audio visualizer (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`, `ERROR`) reacting to real-time audio volume via Web Audio API.
-- **Dual Personality Modes**:
-  - 😂 **Always Funny**: Cheerful, sarcastic best friend.
-  - 🔥 **Roast Companion**: Witty, savage roast master.
-- **Strict Response Constraint**: Maximum 1 sentence (3–10 words preferred, max 15 words). No paragraphs, no explanations.
-- **User-Selectable Voices**: Choose between **Yashvi** (Female) and **Zayan** (Male) independently per mode, persisted in local storage.
-- **Context-Aware Humour**: Responses are strictly anchored to what you said (no disconnected stock jokes). Sensitive topics are handled with empathy.
+- **One Unified Comedy Personality**:
+  - TheONE AI is ALWAYS funny, sarcastic, and entertaining—never a generic or dry corporate assistant.
+  - Automatically adapts its comedic style (witty humour, clever sarcasm, playful roasting, savage comebacks, situational comedy, funny observations, wordplay, gentle teasing).
+  - Mood-independent: whether you're bored, angry, celebrating, or failing an exam, it meets you with humor and sharp wit.
+  - Sensitive topics: Handled with gentle, non-insensitive humour without exploiting trauma or dropping character.
+- **Strict Response Constraint**: Maximum 1 sentence (3–10 words preferred, maximum 15 words). No paragraphs, no explanations.
+- **Independent Voice Selection**: Choose between **Yashvi** (Female) and **Zayan** (Male) with a single click, completely independent of humor style and persisted in local storage.
+- **Context-Aware Humour**: Every joke or comeback is strictly anchored to the user's message; factual questions are answered accurately with comedic delivery.
 - **Unified Full-Stack Deployment**: FastAPI serves the REST API and the frontend UI on a single origin.
 
 ---

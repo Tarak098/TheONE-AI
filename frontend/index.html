@@ -28,15 +28,15 @@
         </div>
       </div>
 
-      <!-- Center: Elegant Mode Selector Pill -->
-      <div class="mode-pill-container" role="radiogroup" aria-label="Personality Mode">
-        <button type="button" id="btn-mode-funny" class="mode-pill-btn active" data-mode="always_funny" title="Switch to Always Funny mode">
-          <span class="pill-icon">😂</span>
-          <span class="pill-text">Always Funny</span>
+      <!-- Center: Independent Voice Selector Pill (Yashvi & Zayan) -->
+      <div class="voice-selector-nav" role="radiogroup" aria-label="Voice Selection">
+        <button type="button" id="btn-nav-voice-yashvi" class="nav-voice-btn active" data-voice="Yashvi" title="Select Yashvi (Female Voice)">
+          <span class="nav-voice-avatar">👩</span>
+          <span class="nav-voice-name">Yashvi</span>
         </button>
-        <button type="button" id="btn-mode-roast" class="mode-pill-btn" data-mode="roast_companion" title="Switch to Roast Companion mode">
-          <span class="pill-icon">🔥</span>
-          <span class="pill-text">Roast Companion</span>
+        <button type="button" id="btn-nav-voice-zayan" class="nav-voice-btn" data-voice="Zayan" title="Select Zayan (Male Voice)">
+          <span class="nav-voice-avatar">👨</span>
+          <span class="nav-voice-name">Zayan</span>
         </button>
       </div>
 
@@ -49,7 +49,7 @@
         </div>
 
         <!-- Hidden compat elements for state sync -->
-        <span id="personality-badge" class="hidden"><span id="personality-badge-text">Always Funny</span></span>
+        <span id="personality-badge" class="hidden"><span id="personality-badge-text">TheONE AI</span></span>
         <span id="model-badge" class="hidden"><span id="model-badge-text">Gemma 4 26B</span></span>
         <span id="conversation-id-label" class="hidden">Session: New</span>
 
@@ -114,7 +114,7 @@
       <!-- Live Floating Transcript (Snappy, Compact, Uncluttered) -->
       <div class="floating-transcript-card" id="floating-transcript" style="display:none">
         <div class="transcript-header">
-          <span class="transcript-mode-pill" id="float-mode-pill">Always Funny</span>
+          <span class="transcript-mode-pill" id="float-mode-pill">TheONE AI</span>
           <button type="button" class="btn-float-replay" id="btn-float-replay" title="Replay voice response">
             <span>▶️</span><span>Play Voice</span>
           </button>
@@ -212,7 +212,7 @@
             <div class="bubble-header">
               <span class="bubble-avatar">✨</span>
               <span class="bubble-sender">TheONE AI</span>
-              <span class="bubble-tag tag-funny">Always Funny</span>
+              <span class="bubble-tag tag-comedy">Comedy AI</span>
               <span class="bubble-time">Just now</span>
             </div>
             <div class="bubble-content">
@@ -241,7 +241,7 @@
         <div class="settings-group">
           <div class="settings-group-header">
             <span class="settings-label">Voice Selection</span>
-            <span class="settings-sublabel">Independent voice for <strong id="voice-mode-label">Always Funny</strong></span>
+            <span class="settings-sublabel">Select your preferred Indian neural voice</span>
           </div>
           <div class="voice-cards-grid" id="voice-options-container">
             <button type="button" class="voice-option-card active" data-voice="Yashvi" id="btn-voice-yashvi">

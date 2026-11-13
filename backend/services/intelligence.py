@@ -100,7 +100,7 @@ class IntelligenceEngine:
         self,
         message: str,
         conversation_id: Optional[str] = None,
-        mode: str = "always_funny",
+        mode: str = "unified_comedy",
         language: str = "en",
     ) -> ChatTurnResult:
         """Alias for process_turn supporting standard method signatures."""
@@ -115,7 +115,7 @@ class IntelligenceEngine:
         self,
         message: str,
         conversation_id: Optional[str] = None,
-        mode: str = "always_funny",
+        mode: str = "unified_comedy",
         language: str = "en",
     ) -> ChatTurnResult:
         """
@@ -123,9 +123,9 @@ class IntelligenceEngine:
 
         Workflow:
         1. Receive and validate user message.
-        2. Validate and normalize personality mode.
+        2. Validate and normalize personality mode (unified comedy).
         3. Retrieve or create isolated conversation session.
-        4. Load corresponding personality system prompt.
+        4. Load unified comedy system prompt.
         5. Dispatch to active LLM provider (Gemini or Evon).
         6. Persist user and assistant turns in conversation history.
         7. Return structured ChatTurnResult.
@@ -146,7 +146,7 @@ class IntelligenceEngine:
                 f"Message length ({len(clean_message)} characters) exceeds maximum limit of {MAX_MESSAGE_LENGTH}."
             )
 
-        # 2. Validate and Normalize Personality Mode
+        # 2. Validate and Normalize Personality Mode (Unified Comedy)
         valid_mode = self.personality.validate_mode(mode)
 
         # 3. Retrieve or Create Conversation Session
@@ -154,17 +154,8 @@ class IntelligenceEngine:
         if session.mode != valid_mode:
             session.switch_mode(valid_mode)
 
-        # 4. Check for Serious/Sensitive Content or Load Personality Prompt
-        is_sensitive = is_sensitive_message(clean_message)
-        if is_sensitive:
-            logger.info("Sensitive message detected for ConvID %s; using compassionate mode.", session.conversation_id)
-            system_prompt = (
-                "You are TheONE AI. The user is experiencing a genuinely serious, sensitive, or painful situation. "
-                "Do NOT joke, roast, or use sarcasm. Provide a gentle, compassionate, and supportive response. "
-                "Strictly EXACTLY ONE single sentence, 3 to 12 words. No bullet points, no paragraphs."
-            )
-        else:
-            system_prompt = self.personality.get_system_prompt(valid_mode)
+        # 4. Load Unified Comedy System Prompt (Adaptive, Mood-Independent Humour)
+        system_prompt = self.personality.get_system_prompt(valid_mode)
 
         # 5. Route to Active LLM Provider
         provider_name = self.active_provider

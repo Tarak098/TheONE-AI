@@ -37,7 +37,7 @@ class ChatMessage:
 class ConversationSession:
     """Represents an isolated user conversation session."""
 
-    def __init__(self, conversation_id: str, mode: str = "always_funny", max_turns: int = 20) -> None:
+    def __init__(self, conversation_id: str, mode: str = "unified_comedy", max_turns: int = 20) -> None:
         self.conversation_id = conversation_id
         self.mode = mode
         self.max_turns = max_turns
@@ -98,7 +98,7 @@ class ConversationManager:
         self.max_turns = max_turns or settings.MAX_CONVERSATION_TURNS
         self._sessions: Dict[str, ConversationSession] = {}
 
-    def create_conversation(self, conversation_id: Optional[str] = None, mode: str = "always_funny") -> ConversationSession:
+    def create_conversation(self, conversation_id: Optional[str] = None, mode: str = "unified_comedy") -> ConversationSession:
         """Create a new unique conversation session."""
         cid = conversation_id.strip() if conversation_id and conversation_id.strip() else f"conv_{uuid.uuid4().hex[:12]}"
         session = ConversationSession(conversation_id=cid, mode=mode, max_turns=self.max_turns)
@@ -112,7 +112,7 @@ class ConversationManager:
             return None
         return self._sessions.get(conversation_id.strip())
 
-    def get_or_create_conversation(self, conversation_id: Optional[str] = None, mode: str = "always_funny") -> ConversationSession:
+    def get_or_create_conversation(self, conversation_id: Optional[str] = None, mode: str = "unified_comedy") -> ConversationSession:
         """Retrieve existing conversation or create a new one if not found."""
         if conversation_id and conversation_id.strip() in self._sessions:
             return self._sessions[conversation_id.strip()]

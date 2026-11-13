@@ -23,15 +23,15 @@
         │
         ▼
 [ Intelligence Orchestrator ]
-  ├── Mode Prompt Resolution (Always Funny / Roast Companion)
-  ├── Context-Aware Subject Alignment & Anti-Cliché Validation
+  ├── Unified Comedy Personality (Always funny, sarcastic & witty across all moods)
+  ├── Adaptive Comedy Engine (Witty, sarcastic, roast, situational, gentle teasing)
   ├── Google Gemma 4 26B (with Gemini 2.5 Flash High-Availability Failover)
-  └── Response Length Validator (Strictly ≤ 1 Sentence, 3–10 Words)
+  └── Response Length Validator (Strictly ≤ 1 Sentence, 3–10 Words, Max 15 Words)
         │
         ▼
 [ Gnani Timbre TTS v2.5 ]
-  ├── Always Funny: "Yashvi" (Female, Cheerful 1.04x speed)
-  └── Roast Companion: "Zayan" (Male, Deadpan 0.98x speed with dramatic pauses "...")
+  ├── User Voice Selection: "Yashvi" (Female, Cheerful 1.04x speed)
+  └── User Voice Selection: "Zayan" (Male, Deadpan 0.98x speed)
         │  (48 kHz WAV Audio)
         ▼
 [ Web Audio API Player ] ──► Real-Time AnalyserNode ──► Reactive Voice Orb Animation
@@ -47,14 +47,17 @@
    - `THINKING`: Dynamic orbital swirling glow during LLM generation.
    - `SPEAKING`: Acoustic ripple waves pulsating to synthesized speech amplitude.
    - `ERROR`: Subtle warm amber feedback.
-2. **Dual Personalities**:
-   - **Always Funny**: Cheerful, sarcastic best friend turning everyday moments into instant comedy.
-   - **Roast Companion**: Witty, confident roast master delivering razor-sharp, unexpected comebacks.
-3. **Context-Aware Humour & Safety**:
-   - Responds strictly to the subject mentioned (no disconnected generic jokes).
-   - Sensitive message detection ensures genuine grief or emergencies receive warm, supportive care.
-4. **Independent Voice Persistence**:
-   - User choices between `Yashvi` (Female) and `Zayan` (Male) are maintained independently per personality mode and persisted across sessions.
+2. **One Unified Comedy Personality**:
+   - TheONE AI is **ALWAYS** funny, sarcastic, witty, and entertaining—regardless of user mood.
+   - Automatic adaptive comedy behaviour: witty humour, clever sarcasm, playful roasting, savage comebacks, situational comedy, funny observations, wordplay, and gentle teasing.
+   - Zero dry or boring assistant mode. Factual queries are answered with accuracy and humor.
+   - Sensitive topics handled with gentle, non-insensitive humour without exploiting trauma or dropping personality.
+3. **Strict Response Length**:
+   - Maximum 1 sentence (3–10 words preferred, maximum 15 words).
+   - Zero paragraphs, zero lectures, zero stock filler.
+4. **Independent Voice Selection**:
+   - User toggles between `Yashvi` (Female) and `Zayan` (Male) directly via the top navigation bar.
+   - Voice selection is completely independent of conversational humor style and persisted in `localStorage`.
 5. **Secondary Controls**:
    - Floating live transcript card with replay button.
    - Slide-over Conversation History Drawer and Settings Drawer.

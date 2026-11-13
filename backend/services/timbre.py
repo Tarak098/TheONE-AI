@@ -257,21 +257,13 @@ class TimbreService:
 
     def get_voice_for_mode(self, mode: Optional[str] = None) -> str:
         """
-        Select an appropriate voice based on personality mode.
-
-        Always Funny -> Yashvi (energetic, friendly, expressive)
-        Roast Companion -> Zayan (witty, confident, sarcastic edge)
+        Select an appropriate voice.
+        In TheONE AI's unified personality, voice selection is user-driven (Yashvi or Zayan).
+        Falls back to default_voice if not specified.
         """
-        if not mode:
-            return self.default_voice
-
-        normalized_mode = mode.lower().strip()
-        if normalized_mode in ("always_funny", "funny"):
-            return self.voice_funny
-        elif normalized_mode in ("roast_companion", "roast"):
+        if mode and mode.lower().strip() in ("roast_companion", "roast"):
             return self.voice_roast
-
-        return self.default_voice
+        return self.default_voice or self.voice_funny or "Yashvi"
 
     @classmethod
     def get_supported_voices(cls) -> Dict[str, Dict[str, str]]:
