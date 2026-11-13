@@ -306,33 +306,35 @@ class GeminiService:
                     msg,
                 )
 
-                # HTTP 429 / Quota: If on gemma, attempt failover to gemini-2.5-flash
+                # HTTP 429 / Quota: If on gemma, attempt failover to high-quota flash models
                 if code == 429 or "RESOURCE_EXHAUSTED" in status_str or "quota" in msg.lower():
                     if is_gemma:
-                        logger.warning(
-                            "Gemma rate/token limit reached (429 RESOURCE_EXHAUSTED). "
-                            "Failing over to gemini-2.5-flash for seamless continuity..."
-                        )
-                        try:
-                            fallback_config = types.GenerateContentConfig(
-                                system_instruction=system_instruction,
-                                temperature=temperature,
-                                max_output_tokens=60,
-                                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                        for fallback_model in ("gemini-2.0-flash", "gemini-1.5-flash"):
+                            logger.warning(
+                                "Gemma rate/token limit reached (429 RESOURCE_EXHAUSTED). "
+                                "Failing over to %s for seamless continuity...",
+                                fallback_model,
                             )
-                            fallback_resp = await asyncio.wait_for(
-                                client.aio.models.generate_content(
-                                    model="gemini-2.5-flash",
-                                    contents=formatted_contents,
-                                    config=fallback_config,
-                                ),
-                                timeout=float(self.timeout),
-                            )
-                            if fallback_resp and fallback_resp.text and fallback_resp.text.strip():
-                                logger.info("Successfully recovered from Gemma 429 limit using gemini-2.5-flash fallback.")
-                                return fallback_resp.text.strip()
-                        except Exception as fallback_err:
-                            logger.error("Failover on 429 to gemini-2.5-flash also failed: %s", fallback_err)
+                            try:
+                                fallback_config = types.GenerateContentConfig(
+                                    system_instruction=system_instruction,
+                                    temperature=temperature,
+                                    max_output_tokens=60,
+                                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                                )
+                                fallback_resp = await asyncio.wait_for(
+                                    client.aio.models.generate_content(
+                                        model=fallback_model,
+                                        contents=formatted_contents,
+                                        config=fallback_config,
+                                    ),
+                                    timeout=float(self.timeout),
+                                )
+                                if fallback_resp and fallback_resp.text and fallback_resp.text.strip():
+                                    logger.info("Successfully recovered from Gemma 429 limit using %s fallback.", fallback_model)
+                                    return fallback_resp.text.strip()
+                            except Exception as fallback_err:
+                                logger.error("Failover on 429 to %s failed: %s", fallback_model, fallback_err)
 
                     raise GeminiRateLimitError(
                         "Google Gemini/Gemma API quota or rate limit exceeded. Please try again later."
@@ -363,33 +365,35 @@ class GeminiService:
                     backoff_delay *= 2.0
                     continue
 
-                # If Gemma returns persistent 500 INTERNAL (upstream infrastructure outage), failover to gemini-2.5-flash
+                # If Gemma returns persistent 500 INTERNAL (upstream infrastructure outage), failover to high-quota flash models
                 if is_gemma and (code in (500, 502, 503) or "INTERNAL" in status_str):
-                    logger.warning(
-                        "Upstream Google Gemma endpoint returned persistent 500 INTERNAL (%s). "
-                        "Failing over to gemini-2.5-flash to ensure continuous service...",
-                        msg,
-                    )
-                    try:
-                        fallback_config = types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            temperature=temperature,
-                            max_output_tokens=60,
-                            thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    for fallback_model in ("gemini-2.0-flash", "gemini-1.5-flash"):
+                        logger.warning(
+                            "Upstream Google Gemma endpoint returned persistent 500 INTERNAL (%s). "
+                            "Failing over to %s to ensure continuous service...",
+                            msg,
+                            fallback_model,
                         )
-                        fallback_resp = await asyncio.wait_for(
-                            client.aio.models.generate_content(
-                                model="gemini-2.5-flash",
-                                contents=formatted_contents,
-                                config=fallback_config,
-                            ),
-                            timeout=float(self.timeout),
-                        )
-                        if fallback_resp and fallback_resp.text and fallback_resp.text.strip():
-                            logger.info("Successfully recovered from upstream Gemma 500 error using gemini-2.5-flash fallback.")
-                            return fallback_resp.text.strip()
-                    except Exception as fallback_err:
-                        logger.error("Failover to gemini-2.5-flash also encountered error: %s", fallback_err)
+                        try:
+                            fallback_config = types.GenerateContentConfig(
+                                system_instruction=system_instruction,
+                                temperature=temperature,
+                                max_output_tokens=60,
+                                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                            )
+                            fallback_resp = await asyncio.wait_for(
+                                client.aio.models.generate_content(
+                                    model=fallback_model,
+                                    contents=formatted_contents,
+                                    config=fallback_config,
+                                ),
+                                timeout=float(self.timeout),
+                            )
+                            if fallback_resp and fallback_resp.text and fallback_resp.text.strip():
+                                logger.info("Successfully recovered from upstream Gemma 500 error using %s fallback.", fallback_model)
+                                return fallback_resp.text.strip()
+                        except Exception as fallback_err:
+                            logger.error("Failover to %s also encountered error: %s", fallback_model, fallback_err)
 
                 if "deadline" in msg.lower() or "timeout" in msg.lower():
                     raise GeminiTimeoutError(f"Gemini request timed out: {msg}") from err

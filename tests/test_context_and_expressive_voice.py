@@ -106,12 +106,13 @@ def test_personality_manager_unified():
     assert manager.validate_mode("anything") == "unified_comedy"
 
     prompt = manager.get_system_prompt()
-    assert "ONE single, unified personality: ALWAYS funny" in prompt
-    assert "Even boredom is bored of you" in prompt
-    assert "Your exam paper won this round" in prompt
-    assert "Should I inform your patience department" in prompt
-    assert "Finally, your talent escaped captivity" in prompt
-    assert "Your brain is buffering" in prompt
+    assert "You are TheONE AI" in prompt
+    assert "SIMPLE, EVERYDAY SPOKEN ENGLISH" in prompt
+    assert "Bro, tomorrow has blocked you already." in prompt
+    assert "Good morning, grandpa." in prompt
+    assert "Your bank account is running a charity for zeroes." in prompt
+    assert "Yeah bro, your mirror must be proud." in prompt
+    assert "Bro, the question paper won this fight." in prompt
 
 
 def test_timbre_independent_voices():

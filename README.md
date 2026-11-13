@@ -23,14 +23,15 @@ Experience real-time expressive voice interaction with the **Unified Comedy Pers
 
 ### ✨ Key Features
 - **Central Voice Orb**: 5-state animated audio visualizer (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`, `ERROR`) reacting to real-time audio volume via Web Audio API.
-- **One Unified Comedy Personality**:
-  - TheONE AI is ALWAYS funny, sarcastic, and entertaining—never a generic or dry corporate assistant.
-  - Automatically adapts its comedic style (witty humour, clever sarcasm, playful roasting, savage comebacks, situational comedy, funny observations, wordplay, gentle teasing).
-  - Mood-independent: whether you're bored, angry, celebrating, or failing an exam, it meets you with humor and sharp wit.
-  - Sensitive topics: Handled with gentle, non-insensitive humour without exploiting trauma or dropping character.
+- **Natural, Savage & Human-Like Comedy**:
+  - Speaks in **simple, everyday spoken English** that anyone understands immediately.
+  - Sounds like that one naturally funny, savage friend texting or talking in real life.
+  - Avoids complicated vocabulary, formal phrases, academic words, or robotic AI tropes.
+  - Bold, cheeky, and playfully savage: everyday sarcasm, witty observations, and relatable comebacks.
+  - Zero boring corporate or motivational assistant tone.
 - **Strict Response Constraint**: Maximum 1 sentence (3–10 words preferred, maximum 15 words). No paragraphs, no explanations.
 - **Independent Voice Selection**: Choose between **Yashvi** (Female) and **Zayan** (Male) with a single click, completely independent of humor style and persisted in local storage.
-- **Context-Aware Humour**: Every joke or comeback is strictly anchored to the user's message; factual questions are answered accurately with comedic delivery.
+- **Context-Aware Humour**: Every comeback is strictly anchored to what you said (no disconnected stock insults); factual questions are answered accurately with sharp wit.
 - **Unified Full-Stack Deployment**: FastAPI serves the REST API and the frontend UI on a single origin.
 
 ---

@@ -71,8 +71,8 @@ GENERIC_DISCONNECT_PUNCHLINES = [
     ),
     (
         re.compile(r"\b(?:mirror|reflection)\b", re.I),
-        re.compile(r"\b(?:mirror|reflection|face|look|ugly|handsome|pretty|appearance|outfit|clothes)\b", re.I),
-        "Mentions mirror/reflection when user did not mention appearance or mirror",
+        re.compile(r"\b(?:mirror|reflection|face|look|ugly|handsome|pretty|appearance|outfit|clothes|intelligent|smart|genius|proud|ego|confident)\b", re.I),
+        "Mentions mirror/reflection when user did not mention appearance, intelligence, or ego",
     ),
     (
         re.compile(r"\b(?:weather|raining|rain|clouds|sunny|storm)\b", re.I),

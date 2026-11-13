@@ -210,10 +210,10 @@ class IntelligenceEngine:
             )
             relevance_instruction = (
                 f"{system_prompt}\n\n"
-                f"CRITICAL RELEVANCE CORRECTION: Your previous candidate response was rejected because: {failure_reason}. "
+                f"CRITICAL RELEVANCE & SIMPLICITY CORRECTION: Your previous candidate response was rejected because: {failure_reason}. "
                 f"User's exact message: {clean_message!r}. "
-                f"You MUST respond directly to what the user said about their specific topic. "
-                f"Never use generic off-topic insults or stock jokes. "
+                f"You MUST respond directly to what the user said using SIMPLE EVERYDAY ENGLISH like a funny savage friend. "
+                f"Avoid complicated words, formal vocabulary, or generic off-topic insults. "
                 f"Deliver EXACTLY ONE punchline in 3 to 10 words (maximum 15 words). No extra sentences."
             )
             try:
