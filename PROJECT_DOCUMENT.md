@@ -17,12 +17,16 @@
 
 ```
 [ User Microphone ]
-        │  (Linear PCM 16-bit, 16 kHz Mono WAV)
+        │  (Linear PCM 16-bit, 16 kHz Mono AudioWorklet frames @ 32ms)
         ▼
-[ Gnani Prisma STT v3 ] ──► Recognized Text Transcript
-        │
+[ FastAPI WebSocket Bridge (/api/v1/stt/stream) ]
+        │  (x-partials: true, x-sample-rate: 16000, model: prisma-v3.0)
+        ▼
+[ Gnani Prisma STT v3 WebSocket (wss://api.vachana.ai/stt/v3/stream) ]
+        │  (Real-Time Progressive Partial Transcripts ──► Live Screen Update)
         ▼
 [ Intelligence Orchestrator ]
+        │  (Final Utterance Confirmation)
   ├── Unified Comedy Personality (Always funny, sarcastic & witty across all moods)
   ├── Adaptive Comedy Engine (Witty, sarcastic, roast, situational, gentle teasing)
   ├── Google Gemma 4 26B (with Gemini 2.5 Flash High-Availability Failover)
@@ -59,7 +63,7 @@
    - User toggles between `Yashvi` (Female) and `Zayan` (Male) directly via the top navigation bar.
    - Voice selection is completely independent of conversational humor style and persisted in `localStorage`.
 5. **Secondary Controls & Visual Feedback**:
-   - **Real-Time Speech Transcription**: Real-time chunk-based STT transcription with Gnani Prisma. Words update dynamically in a temporary live transcription area while the user is speaking.
+   - **Genuine Real-Time Speech Recognition**: AudioWorklet continuously captures and resamples microphone input to 16 kHz signed 16-bit PCM (1024-byte frames @ 32ms) and streams it via WebSocket to Gnani Prisma STT v3 (`x-partials: true`). Words appear progressively on the active screen as they are spoken.
    - **Voice/Audio-Only AI Responses**: The AI responds purely via voice audio through Gnani Timbre TTS without displaying AI response textboxes, message cards, or chat bubbles on the active screen.
    - **Playback-Linked Transcription Lifecycle**: The live transcription remains visible during AI thinking and speech playback, and smoothly fades out after playback completes.
    - **Full Conversation History Drawer**: Both user inputs and AI replies are preserved in the slide-over transcript drawer with voice replay buttons and timestamps.
@@ -68,9 +72,9 @@
 ---
 
 ## 4. Technical Stack
-- **Backend**: FastAPI (Python 3.11), Uvicorn ASGI, Pydantic Settings.
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas, Web Audio API, Modern CSS3.
-- **Speech Recognition (STT)**: Gnani Prisma v3 REST API.
+- **Backend**: FastAPI (Python 3.11), Uvicorn ASGI, WebSockets, Pydantic Settings.
+- **Frontend**: Vanilla JavaScript (ES6+), AudioWorklet, Web Audio API, HTML5 Canvas, Modern CSS3.
+- **Speech Recognition (STT)**: Gnani Prisma v3 WebSocket Streaming API (`wss://api.vachana.ai/stt/v3/stream`).
 - **LLM Reasoning**: Google Gemma 4 26B (`gemma-4-26b-a4b-it`) via Google GenAI SDK.
 - **Speech Synthesis (TTS)**: Gnani Timbre v2.5 REST API.
 

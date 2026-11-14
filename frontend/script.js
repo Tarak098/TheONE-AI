@@ -25,6 +25,13 @@ const state = {
   audioContext: null,
   mediaStream: null,
   scriptProcessor: null,
+  audioWorkletNode: null,
+  streamingWs: null,
+  confirmedTranscript: '',
+  currentPartialTranscript: '',
+  isTurnSubmitted: false,
+  hasReceivedSpeech: false,
+  silenceTimeout: null,
   micAnalyser: null,
   playbackAnalyser: null,
   activeAudioSource: null,
@@ -763,92 +770,94 @@ async function clearConversationHistory() {
 }
 
 // =============================================================================
-// Real-Time Speech Capture & Chunk-Based STT (Gnani Prisma v3)
+// Real-Time Speech Recognition via Gnani Prisma WebSocket Streaming
 // =============================================================================
-let interimRecognizer = null;
 
-function tryStartInterimSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return;
-  try {
-    if (interimRecognizer) {
-      try { interimRecognizer.abort(); } catch (_) {}
-    }
-    interimRecognizer = new SpeechRecognition();
-    interimRecognizer.continuous = true;
-    interimRecognizer.interimResults = true;
-    interimRecognizer.lang = languageSelect ? languageSelect.value : 'en-IN';
-    interimRecognizer.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        interim += event.results[i][0].transcript;
-      }
-      if (interim.trim() && state.isRecording) {
-        state.lastPartialTranscript = interim.trim();
-        showLiveUserSpeech(interim.trim(), 'partial');
-      }
-    };
-    interimRecognizer.onerror = () => {};
-    interimRecognizer.start();
-  } catch (_) {}
-}
-
-function stopInterimSpeechRecognition() {
-  if (interimRecognizer) {
+function closeStreamingWs() {
+  if (state.streamingWs) {
     try {
-      interimRecognizer.stop();
+      state.streamingWs.onopen = null;
+      state.streamingWs.onmessage = null;
+      state.streamingWs.onerror = null;
+      state.streamingWs.onclose = null;
+      if (state.streamingWs.readyState === WebSocket.OPEN) {
+        state.streamingWs.send(JSON.stringify({ type: 'close' }));
+        state.streamingWs.close(1000);
+      }
     } catch (_) {}
-    interimRecognizer = null;
+    state.streamingWs = null;
   }
 }
 
-async function processPartialChunk() {
-  if (!state.isRecording || state.isChunkProcessing) return;
-  if (!state.pcmChunks || state.pcmChunks.length === 0) return;
-
-  const sourceSampleRate = state.audioContext ? state.audioContext.sampleRate : 44100;
-  let totalLength = 0;
-  for (const chunk of state.pcmChunks) totalLength += chunk.length;
-
-  const durationSec = totalLength / sourceSampleRate;
-  if (durationSec < 0.75) return; // Wait for minimum speech window
-
-  // Snapshot accumulated audio for progressive incremental recognition
-  const combined = new Float32Array(totalLength);
-  let offset = 0;
-  for (const chunk of state.pcmChunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
+function releaseMicrophone() {
+  if (state.audioWorkletNode) {
+    try {
+      state.audioWorkletNode.port.onmessage = null;
+      state.audioWorkletNode.disconnect();
+    } catch (_) {}
+    state.audioWorkletNode = null;
   }
+  if (state.scriptProcessor) {
+    try {
+      state.scriptProcessor.onaudioprocess = null;
+      state.scriptProcessor.disconnect();
+    } catch (_) {}
+    state.scriptProcessor = null;
+  }
+  if (state.micAnalyser) {
+    try { state.micAnalyser.disconnect(); } catch (_) {}
+    state.micAnalyser = null;
+  }
+  if (state.mediaStream) {
+    state.mediaStream.getTracks().forEach((t) => t.stop());
+    state.mediaStream = null;
+  }
+  if (state.silenceTimeout) {
+    clearTimeout(state.silenceTimeout);
+    state.silenceTimeout = null;
+  }
+}
 
+function setupScriptProcessorFallback(source, audioCtx) {
+  const bufferSize = 4096;
+  const scriptNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
   const targetRate = 16000;
-  const resampled = downsampleBuffer(combined, sourceSampleRate, targetRate);
-  const wavBlob = encodeWAV(resampled, targetRate);
+  const ratio = audioCtx.sampleRate / targetRate;
+  let resampleIndex = 0.0;
+  const frameSamples = 512; // 1024 bytes of 16-bit PCM
+  let pcmBuffer = new Int16Array(frameSamples);
+  let pcmIndex = 0;
 
-  state.isChunkProcessing = true;
-  const formData = new FormData();
-  formData.append('audio_file', wavBlob, 'chunk.wav');
-  formData.append('language_code', languageSelect ? languageSelect.value : 'en-IN');
+  scriptNode.onaudioprocess = (e) => {
+    if (!state.isRecording) return;
+    const input = e.inputBuffer.getChannelData(0);
+    const len = input.length;
 
-  try {
-    const res = await fetch(`${state.apiBaseUrl}/api/v1/stt/transcribe`, {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json().catch(() => null);
+    while (resampleIndex < len) {
+      const idx = Math.floor(resampleIndex);
+      const frac = resampleIndex - idx;
+      const s0 = input[idx];
+      const s1 = idx + 1 < len ? input[idx + 1] : s0;
+      const sample = s0 + frac * (s1 - s0);
 
-    if (data && data.success && data.transcript) {
-      const partialText = data.transcript.trim();
-      if (partialText && state.isRecording) {
-        state.lastPartialTranscript = partialText;
-        showLiveUserSpeech(partialText, 'partial');
+      const clamped = Math.max(-1.0, Math.min(1.0, sample));
+      pcmBuffer[pcmIndex++] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
+
+      if (pcmIndex >= frameSamples) {
+        if (state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN) {
+          state.streamingWs.send(pcmBuffer.buffer);
+        }
+        pcmBuffer = new Int16Array(frameSamples);
+        pcmIndex = 0;
       }
+      resampleIndex += ratio;
     }
-  } catch (err) {
-    console.debug('Prisma STT chunk update:', err);
-  } finally {
-    state.isChunkProcessing = false;
-  }
+    resampleIndex -= len;
+  };
+
+  source.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  state.scriptProcessor = scriptNode;
 }
 
 async function startRecording() {
@@ -864,149 +873,212 @@ async function startRecording() {
     return;
   }
 
+  // Release any previous microphone tracks or connections
+  releaseMicrophone();
+  closeStreamingWs();
+
+  // Reset conversation turn state
+  state.confirmedTranscript = '';
+  state.currentPartialTranscript = '';
+  state.isTurnSubmitted = false;
+  state.hasReceivedSpeech = false;
+
+  const targetLang = languageSelect ? languageSelect.value : 'en-IN';
+
+  // 1. Establish FastAPI WebSocket bridge to Gnani Prisma STT v3
+  const isSecure = window.location.protocol === 'https:';
+  const wsProtocol = isSecure ? 'wss:' : 'ws:';
+  const host = window.location.host || '127.0.0.1:8000';
+  const streamUrl = `${wsProtocol}//${host}/api/v1/stt/stream?language_code=${encodeURIComponent(targetLang)}`;
+
+  let ws;
+  try {
+    ws = new WebSocket(streamUrl);
+    ws.binaryType = 'arraybuffer';
+    state.streamingWs = ws;
+  } catch (err) {
+    setOrbState('error', 'WS Error', err.message);
+    showError(`Could not open speech stream: ${err.message}`);
+    return;
+  }
+
+  ws.onopen = () => {
+    console.debug('Prisma STT WebSocket connected');
+  };
+
+  ws.onmessage = (event) => {
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (_) {
+      return;
+    }
+
+    const type = data.type;
+    if (type === 'connected') {
+      setOrbState('listening');
+      showLiveUserSpeech('Listening to your speech... Speak now', 'listening');
+    } else if (type === 'speech_start') {
+      state.hasReceivedSpeech = true;
+      if (state.silenceTimeout) {
+        clearTimeout(state.silenceTimeout);
+        state.silenceTimeout = null;
+      }
+    } else if (type === 'partial') {
+      state.hasReceivedSpeech = true;
+      if (state.silenceTimeout) {
+        clearTimeout(state.silenceTimeout);
+        state.silenceTimeout = null;
+      }
+      state.currentPartialTranscript = (data.text || '').trim();
+      const currentFull = (state.confirmedTranscript ? state.confirmedTranscript + ' ' : '') + state.currentPartialTranscript;
+      if (currentFull && state.isRecording) {
+        showLiveUserSpeech(currentFull, 'partial');
+      }
+    } else if (type === 'speech_end') {
+      // VAD detected speech end boundary
+    } else if (type === 'final') {
+      const segText = (data.text || '').trim();
+      if (segText) {
+        state.confirmedTranscript = (state.confirmedTranscript ? state.confirmedTranscript + ' ' : '') + segText;
+      }
+      state.currentPartialTranscript = '';
+      const fullDisplay = state.confirmedTranscript;
+      if (fullDisplay) {
+        showLiveUserSpeech(fullDisplay, 'voice');
+      }
+
+      // If user stopped speaking after speech was recognized, schedule turn finalization
+      if (state.isRecording && state.hasReceivedSpeech && fullDisplay) {
+        if (state.silenceTimeout) clearTimeout(state.silenceTimeout);
+        state.silenceTimeout = setTimeout(() => {
+          if (state.isRecording) {
+            stopRecording();
+          }
+        }, 1200);
+      }
+    } else if (type === 'error') {
+      console.warn('Prisma STT stream error:', data.message);
+      showError(data.message || 'Speech recognition error.');
+    }
+  };
+
+  ws.onerror = (err) => {
+    console.debug('Prisma WebSocket error event:', err);
+  };
+
+  ws.onclose = () => {
+    state.streamingWs = null;
+  };
+
+  // 2. Request user microphone
   try {
     state.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
   } catch (err) {
+    closeStreamingWs();
     setOrbState('error', 'Mic Denied', 'Microphone permission was denied.');
     showError(err.name === 'NotAllowedError' ? 'Microphone permission denied.' : `Microphone error: ${err.message}`);
     return;
   }
 
+  // 3. Connect Web Audio Pipeline
   try {
     const audioCtx = getAudioContext();
     const source = audioCtx.createMediaStreamSource(state.mediaStream);
 
-    // Connect AnalyserNode for real-time microphone volume visualization
+    // Connect AnalyserNode for real-time visual voice orb pulsing
     state.micAnalyser = audioCtx.createAnalyser();
     state.micAnalyser.fftSize = 256;
     state.micAnalyser.smoothingTimeConstant = 0.6;
     source.connect(state.micAnalyser);
 
-    state.scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
-    state.pcmChunks = [];
-    state.lastPartialTranscript = '';
-    state.isChunkProcessing = false;
-    state.speechDetected = false;
-    state.silenceStartTime = null;
-
-    state.scriptProcessor.onaudioprocess = (e) => {
-      if (!state.isRecording) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      state.pcmChunks.push(new Float32Array(inputData));
-
-      // Real-time Voice Activity & Pause Detection
-      let sumSquares = 0;
-      for (let i = 0; i < inputData.length; i++) {
-        sumSquares += inputData[i] * inputData[i];
-      }
-      const rms = Math.sqrt(sumSquares / inputData.length);
-      const SPEECH_THRESHOLD = 0.015;
-
-      if (rms > SPEECH_THRESHOLD) {
-        state.speechDetected = true;
-        state.silenceStartTime = null;
-      } else if (state.speechDetected) {
-        if (!state.silenceStartTime) {
-          state.silenceStartTime = Date.now();
-        } else if (Date.now() - state.silenceStartTime > 1800) {
-          // Pause / silence of 1.8 seconds after speech -> auto-finalize utterance
-          stopRecording();
-        }
-      }
-    };
-
-    source.connect(state.scriptProcessor);
-    state.scriptProcessor.connect(audioCtx.destination);
-
+    // Set recording state & start timer
     state.isRecording = true;
     state.recordingStartTime = Date.now();
     state.timerInterval = setInterval(updateRecordingTimer, 500);
 
-    // Continuous chunk-based STT sampling every 1.4 seconds
-    state.chunkInterval = setInterval(processPartialChunk, 1400);
+    // Setup AudioWorklet streaming (fallback to ScriptProcessorNode)
+    let workletInitialized = false;
+    if (audioCtx.audioWorklet) {
+      try {
+        await audioCtx.audioWorklet.addModule('/pcm-processor.js');
+        const workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+        workletNode.port.onmessage = (e) => {
+          if (state.isRecording && state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN) {
+            state.streamingWs.send(e.data);
+          }
+        };
+        source.connect(workletNode);
+        state.audioWorkletNode = workletNode;
+        workletInitialized = true;
+      } catch (e) {
+        console.debug('AudioWorklet unavailable, using ScriptProcessor fallback:', e);
+      }
+    }
 
-    // Transition to STATE 2 – LISTENING
+    if (!workletInitialized) {
+      setupScriptProcessorFallback(source, audioCtx);
+    }
+
+    // Set orb state to listening
     setOrbState('listening');
-    showLiveUserSpeech('Listening to your speech...', 'listening');
-    tryStartInterimSpeechRecognition();
+    showLiveUserSpeech('Listening to your speech... Speak now', 'listening');
   } catch (err) {
     releaseMicrophone();
-    setOrbState('error', 'Recorder Error', err.message);
-    showError(`Error opening audio recorder: ${err.message}`);
+    closeStreamingWs();
+    setOrbState('error', 'Audio Error', err.message);
+    showError(`Error opening audio stream: ${err.message}`);
   }
 }
 
 async function stopRecording() {
-  if (!state.isRecording) return;
+  if (!state.isRecording && !state.streamingWs) return;
   state.isRecording = false;
 
   clearInterval(state.timerInterval);
   state.timerInterval = null;
 
-  if (state.chunkInterval) {
-    clearInterval(state.chunkInterval);
-    state.chunkInterval = null;
+  if (state.silenceTimeout) {
+    clearTimeout(state.silenceTimeout);
+    state.silenceTimeout = null;
   }
 
-  stopInterimSpeechRecognition();
-  setOrbState('thinking', 'Processing...', 'Transcribing speech with Gnani Prisma...');
-
-  if (state.lastPartialTranscript) {
-    showLiveUserSpeech(state.lastPartialTranscript, 'finalizing');
-  } else {
-    showLiveUserSpeech('Transcribing speech with Gnani Prisma...', 'transcribing');
-  }
-
-  const sourceSampleRate = state.audioContext ? state.audioContext.sampleRate : 44100;
+  // Release microphone hardware immediately
   releaseMicrophone();
 
-  let totalLength = 0;
-  for (const chunk of state.pcmChunks) totalLength += chunk.length;
+  // Send stop control signal over WebSocket to complete any pending VAD segment
+  if (state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN) {
+    try {
+      state.streamingWs.send(JSON.stringify({ type: 'stop' }));
+    } catch (_) {}
+  }
 
-  if (totalLength === 0) {
-    showError('No audio was captured.');
+  // Compile final utterance from confirmed and partial text
+  const finalUtterance = (
+    state.confirmedTranscript +
+    (state.currentPartialTranscript ? ' ' + state.currentPartialTranscript : '')
+  ).trim();
+
+  // Clean up streaming WebSocket
+  closeStreamingWs();
+
+  if (finalUtterance && !state.isTurnSubmitted) {
+    state.isTurnSubmitted = true;
+    setOrbState('thinking', 'Thinking...', 'TheONE AI is coming up with a comeback...');
+    showLiveUserSpeech(finalUtterance, 'voice');
+    // Submit finalized turn to Gemma & Timbre TTS exactly once
+    await sendChatMessage(finalUtterance, 'voice');
+  } else if (!finalUtterance) {
+    showError('No speech was detected. Tap the mic to speak again.');
     setOrbState('idle');
     setTimeout(fadeOutLiveTranscription, 2000);
-    return;
-  }
-
-  const combined = new Float32Array(totalLength);
-  let offset = 0;
-  for (const chunk of state.pcmChunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  // Downsample to 16 kHz Mono WAV for Prisma STT
-  const targetRate = 16000;
-  const resampled = downsampleBuffer(combined, sourceSampleRate, targetRate);
-  const wavBlob = encodeWAV(resampled, targetRate);
-
-  if (resampled.length / targetRate < 0.25) {
-    showError('Recording was too short.');
-    setOrbState('idle');
-    setTimeout(fadeOutLiveTranscription, 2000);
-    return;
-  }
-
-  // Upload final audio to Prisma STT
-  await processVoiceSTT(wavBlob);
-}
-
-function releaseMicrophone() {
-  if (state.scriptProcessor) {
-    try { state.scriptProcessor.disconnect(); } catch (_) {}
-    state.scriptProcessor = null;
-  }
-  if (state.micAnalyser) {
-    try { state.micAnalyser.disconnect(); } catch (_) {}
-    state.micAnalyser = null;
-  }
-  if (state.mediaStream) {
-    state.mediaStream.getTracks().forEach((t) => t.stop());
-    state.mediaStream = null;
   }
 }
 
@@ -1017,103 +1089,6 @@ function updateRecordingTimer() {
   const s = String(elapsed % 60).padStart(2, '0');
   if (recordingTimer) recordingTimer.textContent = `${m}:${s}`;
   if (elapsed >= 60) stopRecording();
-}
-
-function downsampleBuffer(buffer, sampleRate, outSampleRate) {
-  if (outSampleRate >= sampleRate) return buffer;
-  const ratio = sampleRate / outSampleRate;
-  const newLen = Math.round(buffer.length / ratio);
-  const res = new Float32Array(newLen);
-  let offsetRes = 0;
-  let offsetBuf = 0;
-  while (offsetRes < res.length) {
-    const nextOffsetBuf = Math.round((offsetRes + 1) * ratio);
-    let accum = 0;
-    let count = 0;
-    for (let i = offsetBuf; i < nextOffsetBuf && i < buffer.length; i++) {
-      accum += buffer[i];
-      count++;
-    }
-    res[offsetRes] = count > 0 ? accum / count : 0;
-    offsetRes++;
-    offsetBuf = nextOffsetBuf;
-  }
-  return res;
-}
-
-function encodeWAV(samples, sampleRate) {
-  const buffer = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buffer);
-  function writeStr(offset, str) {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-  }
-  writeStr(0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  writeStr(8, 'WAVE');
-  writeStr(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // Mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++, offset += 2) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  return new Blob([view], { type: 'audio/wav' });
-}
-
-async function processVoiceSTT(wavBlob) {
-  const formData = new FormData();
-  formData.append('audio_file', wavBlob, 'recording.wav');
-  formData.append('language_code', languageSelect ? languageSelect.value : 'en-IN');
-
-  try {
-    const res = await fetch(`${state.apiBaseUrl}/api/v1/stt/transcribe`, {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error((data && (data.error || data.detail)) || `STT Error (HTTP ${res.status})`);
-    }
-
-    if (data && data.success) {
-      const transcript = (data.transcript || state.lastPartialTranscript || '').trim();
-      if (transcript) {
-        showSttBanner(`Transcribed: "${transcript}"`);
-        // Immediately display final recognized speech in active conversation area
-        showLiveUserSpeech(transcript, 'voice');
-        // Forward to Chat Pipeline
-        await sendChatMessage(transcript, 'voice');
-      } else {
-        showSttBanner('No speech detected in audio clip.');
-        showLiveUserSpeech('No speech detected. Tap mic to speak again.', 'listening');
-        setOrbState('idle');
-        setTimeout(fadeOutLiveTranscription, 2500);
-      }
-    }
-  } catch (err) {
-    // If final request encountered error but we had a valid partial transcript, recover gracefully
-    if (state.lastPartialTranscript) {
-      showLiveUserSpeech(state.lastPartialTranscript, 'voice');
-      await sendChatMessage(state.lastPartialTranscript, 'voice');
-    } else {
-      setOrbState('error', 'STT Failed', err.message);
-      showError(err.message || 'Speech recognition failed.');
-      setTimeout(() => {
-        if (state.orbState === 'error') setOrbState('idle');
-        fadeOutLiveTranscription();
-      }, 4000);
-    }
-  }
 }
 
 function showSttBanner(msg) {

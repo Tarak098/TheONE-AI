@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -47,6 +47,7 @@ from backend.services.prisma import (
     PrismaService,
     PrismaTimeoutError,
 )
+from backend.services.prisma_stream import PrismaStreamService
 from backend.services.timbre import (
     TimbreAPIError,
     TimbreConfigError,
@@ -106,6 +107,7 @@ app.add_middleware(
 
 # Initialize Core Services
 prisma_service = PrismaService()
+prisma_stream_service = PrismaStreamService()
 gemini_service = GeminiService()
 evon_service = EvonService()
 timbre_service = TimbreService()
@@ -307,6 +309,27 @@ async def transcribe_audio(
         "language": result.language_code,
         "request_id": result.request_id,
     }
+
+
+# ------------------------------------------------------------------------------
+# Real-Time WebSocket Streaming STT Endpoint (Gnani Prisma v3)
+# ------------------------------------------------------------------------------
+@app.websocket("/api/v1/stt/stream")
+async def websocket_stt_stream(
+    websocket: WebSocket,
+    language_code: str = "en-IN",
+):
+    """
+    Real-time speech-to-text WebSocket stream.
+    Accepts raw 16 kHz mono signed 16-bit PCM frames from browser
+    and streams back progressive partial and final transcription events
+    from Gnani Prisma v3.
+    """
+    await websocket.accept()
+    await prisma_stream_service.bridge_stream(
+        client_ws=websocket,
+        language_code=language_code,
+    )
 
 
 # ------------------------------------------------------------------------------
