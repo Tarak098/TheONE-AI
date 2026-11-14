@@ -47,6 +47,10 @@ class ChatTurnResult:
     model: str
     success: bool
     language: str = "en-IN"
+    is_voice_switch: bool = False
+    target_voice: Optional[str] = None
+    voice_to_speak: Optional[str] = None
+    is_ambiguous: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary representation."""
@@ -59,6 +63,10 @@ class ChatTurnResult:
             "language": self.language,
             "provider": self.provider,
             "model": self.model,
+            "is_voice_switch": self.is_voice_switch,
+            "target_voice": self.target_voice,
+            "voice_to_speak": self.voice_to_speak,
+            "is_ambiguous": self.is_ambiguous,
         }
 
 
@@ -107,6 +115,7 @@ class IntelligenceEngine:
         conversation_id: Optional[str] = None,
         mode: str = "unified_comedy",
         language: str = "en",
+        voice: Optional[str] = None,
     ) -> ChatTurnResult:
         """Alias for process_turn supporting standard method signatures."""
         return await self.process_turn(
@@ -114,6 +123,7 @@ class IntelligenceEngine:
             conversation_id=conversation_id,
             mode=mode,
             language=language,
+            voice=voice,
         )
 
     async def process_turn(
@@ -122,6 +132,7 @@ class IntelligenceEngine:
         conversation_id: Optional[str] = None,
         mode: str = "unified_comedy",
         language: str = "en",
+        voice: Optional[str] = None,
     ) -> ChatTurnResult:
         """
         Execute an end-to-end intelligence turn.
@@ -177,7 +188,37 @@ class IntelligenceEngine:
 
         session.last_language = effective_lang
 
-        # 4. Context-First Humour Engine Analysis (Topic, Intent, Comedic Angle, Anti-Repetition)
+        # 4. Natural Voice-Switching Intent Handling (Application Action)
+        from backend.services.voice_intent import detect_voice_switch_intent
+        active_voice = voice or getattr(session, "active_voice", "Yashvi") or "Yashvi"
+        voice_intent = detect_voice_switch_intent(
+            text=clean_message,
+            current_voice=active_voice,
+            language_code=effective_lang,
+        )
+
+        if voice_intent.is_voice_switch:
+            if voice_intent.target_voice:
+                session.active_voice = voice_intent.target_voice
+                logger.info("Switched session '%s' active voice to '%s'", session.conversation_id, voice_intent.target_voice)
+            session.add_message(role="user", content=clean_message, language=effective_lang)
+            session.add_message(role="assistant", content=voice_intent.confirmation_text, language=effective_lang)
+            return ChatTurnResult(
+                conversation_id=session.conversation_id,
+                mode=valid_mode,
+                user_message=clean_message,
+                assistant_response=voice_intent.confirmation_text,
+                language=effective_lang,
+                provider="voice_intent",
+                model="voice_switcher",
+                success=True,
+                is_voice_switch=True,
+                target_voice=voice_intent.target_voice,
+                voice_to_speak=voice_intent.voice_to_speak,
+                is_ambiguous=voice_intent.is_ambiguous,
+            )
+
+        # 5. Context-First Humour Engine Analysis (Topic, Intent, Comedic Angle, Anti-Repetition)
         humour_ctx = self.humour.build_humour_context(
             user_message=clean_message,
             session=session,

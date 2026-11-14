@@ -58,7 +58,7 @@ const state = {
 
 // Load persisted voice preferences
 try {
-  const savedVoice = localStorage.getItem('theone_voice') || localStorage.getItem('theone_selected_voice');
+  const savedVoice = localStorage.getItem('theone_voice_preference') || localStorage.getItem('theone_voice') || localStorage.getItem('theone_selected_voice');
   if (savedVoice && (savedVoice === 'Yashvi' || savedVoice === 'Zayan')) {
     state.activeVoice = savedVoice;
   }
@@ -396,6 +396,7 @@ function selectVoice(voiceName) {
   state.activeVoice = voiceName;
   try {
     localStorage.setItem('theone_voice', voiceName);
+    localStorage.setItem('theone_voice_preference', voiceName);
   } catch (_) {}
   updateVoiceUI();
 }
@@ -500,6 +501,7 @@ async function sendChatMessage(messageText, sourceType = 'voice', languageOverri
       message: text,
       mode: state.activeMode,
       language: turnLang,
+      voice: getActiveVoice(),
     };
 
     const res = await fetch(`${state.apiBaseUrl}/api/v1/chat`, {
@@ -520,6 +522,11 @@ async function sendChatMessage(messageText, sourceType = 'voice', languageOverri
       const reply = data.assistant_response || '';
       const responseLang = data.language || turnLang || 'en-IN';
       state.detectedLanguage = responseLang;
+
+      // Handle natural voice-switching command outcome
+      if (data.is_voice_switch && data.target_voice) {
+        selectVoice(data.target_voice);
+      }
 
       // 3. Preserve AI response in Conversation History drawer (viewable anytime)
       const botBubble = appendMessageBubble('bot', reply, data.mode, data.model);

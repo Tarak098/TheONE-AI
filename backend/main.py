@@ -135,6 +135,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="User message text")
     mode: str = Field(default="unified_comedy", description="Personality mode: 'unified_comedy'")
     language: Optional[str] = Field(default=None, description="Language code (e.g. te-IN, hi-IN, indic-auto)")
+    voice: Optional[str] = Field(default=None, description="Active voice: 'Yashvi' or 'Zayan'")
 
 
 class ClearChatRequest(BaseModel):
@@ -440,6 +441,7 @@ async def chat(request: ChatRequest) -> Dict[str, Any]:
             conversation_id=request.conversation_id,
             mode=request.mode,
             language=request.language,
+            voice=request.voice,
         )
         return result.to_dict()
     except IntelligenceValidationError as err:

@@ -43,6 +43,7 @@ class ConversationSession:
         self.conversation_id = conversation_id
         self.mode = mode
         self.max_turns = max_turns
+        self.active_voice: str = "Yashvi"
         self.last_language: str = "en-IN"
         self.messages: List[ChatMessage] = []
         self.recent_openers: List[str] = []

@@ -24,26 +24,26 @@
   --transition-base: 0.32s var(--ease-spring);
   --transition-slow: 0.55s var(--ease-spring);
 
-  /* Dark Mode Palette (Default) */
-  --bg-app: #06070a;
-  --bg-stage: radial-gradient(circle at 50% 40%, #0d121f 0%, #06070a 75%);
-  --bg-glass: rgba(15, 20, 31, 0.65);
-  --bg-glass-card: rgba(20, 27, 42, 0.75);
-  --bg-drawer: #0b0f17;
+  /* Dark Charcoal & Near-Black Palette (Screenshot 2 Inspired) */
+  --bg-app: #05070a;
+  --bg-stage: radial-gradient(circle at 50% 38%, #0a1120 0%, #05070a 75%);
+  --bg-glass: rgba(12, 18, 30, 0.72);
+  --bg-glass-card: rgba(16, 24, 40, 0.85);
+  --bg-drawer: #070a11;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.18);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
 
-  /* Personality Accent — Always Funny (Electric Cyan & Violet) */
-  --accent-primary: #06b6d4;
-  --accent-secondary: #8b5cf6;
-  --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
-  --accent-glow: rgba(6, 182, 212, 0.35);
-  --orb-blob-1: #06b6d4;
-  --orb-blob-2: #3b82f6;
-  --orb-blob-3: #8b5cf6;
+  /* Vibrant Blue Glowing Orb Palette (Screenshot 1 Inspired) */
+  --accent-primary: #38bdf8;
+  --accent-secondary: #818cf8;
+  --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #3b82f6 50%, #6366f1 100%);
+  --accent-glow: rgba(56, 189, 248, 0.45);
+  --orb-blob-1: #00d2ff;
+  --orb-blob-2: #2563eb;
+  --orb-blob-3: #7c3aed;
 }
 
 /* Personality Theme — Roast Companion (Fiery Sunset & Neon Violet) */
@@ -350,8 +350,8 @@ input {
 /* The Orb Container */
 .orb-container {
   position: relative;
-  width: clamp(210px, 32vw, 310px);
-  height: clamp(210px, 32vw, 310px);
+  width: clamp(240px, 34vw, 320px);
+  height: clamp(240px, 34vw, 320px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,13 +361,13 @@ input {
 /* Ambient Outer Pulsing Glow */
 .orb-ambient-glow {
   position: absolute;
-  width: 120%;
-  height: 120%;
+  width: 135%;
+  height: 135%;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 68%);
-  filter: blur(28px);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.45) 0%, rgba(59, 130, 246, 0.22) 45%, transparent 72%);
+  filter: blur(36px);
   pointer-events: none;
-  opacity: 0.65;
+  opacity: 0.75;
   transition: all var(--transition-slow);
 }
 
@@ -382,7 +382,7 @@ input {
   z-index: 2;
 }
 
-/* Central Voice Orb */
+/* Central Voice Orb (Screenshot 1 Inspired Vibrant Spherical Blue Orb) */
 .voice-orb {
   position: relative;
   width: 100%;
@@ -390,15 +390,23 @@ input {
   border-radius: 50%;
   cursor: pointer;
   overflow: hidden;
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: radial-gradient(circle at 38% 32%, #38bdf8 0%, #1d4ed8 45%, #081226 85%);
+  box-shadow:
+    0 0 60px rgba(14, 165, 233, 0.5),
+    0 0 110px rgba(59, 130, 246, 0.3),
+    inset 0 0 35px rgba(255, 255, 255, 0.3),
+    inset 0 0 70px rgba(37, 99, 235, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   transition: transform var(--transition-base), box-shadow var(--transition-base);
   z-index: 3;
 }
 
 .voice-orb:hover {
   transform: scale(1.03);
-  box-shadow: 0 0 70px var(--accent-glow), inset 0 0 24px rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 0 75px rgba(56, 189, 248, 0.65),
+    0 0 130px rgba(59, 130, 246, 0.4),
+    inset 0 0 40px rgba(255, 255, 255, 0.35);
 }
 
 .voice-orb:active {
@@ -874,31 +882,31 @@ input {
 
 .prominent-mic-btn {
   position: relative;
-  width: 68px;
-  height: 68px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--accent-gradient);
   color: #ffffff;
-  box-shadow: 0 8px 30px var(--accent-glow);
+  box-shadow: 0 8px 32px var(--accent-glow), 0 0 24px rgba(56, 189, 248, 0.35);
   transition: all var(--transition-base);
   z-index: 5;
 }
 
 .prominent-mic-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 12px 40px var(--accent-glow);
+  transform: scale(1.06);
+  box-shadow: 0 12px 42px var(--accent-glow), 0 0 34px rgba(56, 189, 248, 0.55);
 }
 
 .prominent-mic-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .prominent-mic-btn.recording {
-  background: linear-gradient(135deg, #ef4444 0%, #f43f5e 100%);
-  box-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 0 45px rgba(239, 68, 68, 0.7);
   animation: mic-record-pulse 1.3s infinite ease-in-out;
 }
 
@@ -935,15 +943,46 @@ input {
   height: 28px;
 }
 
-/* Minimal Chat Input Bar */
+/* Minimal Chat Input Bar & History Button (Screenshot 2 Minimal Aesthetics) */
 .chat-input-wrapper {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-icon-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(14px);
+  flex-shrink: 0;
+}
+
+.history-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  background: var(--bg-glass-card);
+  transform: translateY(-1px);
+}
+
+.history-icon-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .minimal-chat-bar {
   display: flex;
   align-items: center;
-  width: 100%;
+  flex: 1;
   padding: 6px 8px 6px 18px;
   background: var(--bg-glass);
   border: 1px solid var(--border-subtle);
