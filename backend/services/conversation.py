@@ -22,6 +22,7 @@ class ChatMessage:
     role: str  # "user" | "assistant" | "system"
     content: str
     mode: str
+    language: str = "en-IN"
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -30,6 +31,7 @@ class ChatMessage:
             "role": self.role,
             "content": self.content,
             "mode": self.mode,
+            "language": self.language,
             "timestamp": self.timestamp.isoformat(),
         }
 
@@ -41,17 +43,27 @@ class ConversationSession:
         self.conversation_id = conversation_id
         self.mode = mode
         self.max_turns = max_turns
+        self.last_language: str = "en-IN"
         self.messages: List[ChatMessage] = []
         self.created_at = datetime.now(timezone.utc)
         self.last_updated_at = datetime.now(timezone.utc)
 
-    def add_message(self, role: str, content: str, mode: Optional[str] = None) -> ChatMessage:
+    def add_message(
+        self,
+        role: str,
+        content: str,
+        mode: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> ChatMessage:
         """
         Append a message to this session's history and enforce memory limit.
         Truncates the oldest user/assistant turns if the limit is exceeded.
         """
         active_mode = mode or self.mode
-        msg = ChatMessage(role=role, content=content, mode=active_mode)
+        active_lang = language or self.last_language or "en-IN"
+        self.last_language = active_lang
+
+        msg = ChatMessage(role=role, content=content, mode=active_mode, language=active_lang)
         self.messages.append(msg)
         self.last_updated_at = datetime.now(timezone.utc)
 
@@ -118,15 +130,15 @@ class ConversationManager:
             return self._sessions[conversation_id.strip()]
         return self.create_conversation(conversation_id=conversation_id, mode=mode)
 
-    def add_user_message(self, conversation_id: str, content: str) -> ChatMessage:
+    def add_user_message(self, conversation_id: str, content: str, language: Optional[str] = None) -> ChatMessage:
         """Add a user message turn."""
         session = self.get_or_create_conversation(conversation_id)
-        return session.add_message(role="user", content=content)
+        return session.add_message(role="user", content=content, language=language)
 
-    def add_assistant_message(self, conversation_id: str, content: str) -> ChatMessage:
+    def add_assistant_message(self, conversation_id: str, content: str, language: Optional[str] = None) -> ChatMessage:
         """Add an assistant response turn."""
         session = self.get_or_create_conversation(conversation_id)
-        return session.add_message(role="assistant", content=content)
+        return session.add_message(role="assistant", content=content, language=language)
 
     def switch_mode(self, conversation_id: str, mode: str) -> ConversationSession:
         """Switch active mode on a session while keeping past messages."""

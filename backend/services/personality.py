@@ -60,12 +60,14 @@ class PersonalityManager:
         # Fallback to funny_mode.txt if unified file is missing
         return self.prompts_dir / "funny_mode.txt"
 
-    def get_system_prompt(self, mode: Optional[str] = None) -> str:
+    def get_system_prompt(self, mode: Optional[str] = None, language_code: Optional[str] = None) -> str:
         """
-        Retrieve TheONE AI's unified comedy system prompt using memory caching.
+        Retrieve TheONE AI's unified comedy system prompt using memory caching,
+        enhanced with language-specific guidance if a language is specified.
 
         Args:
             mode: Optional mode parameter (defaults to unified_comedy).
+            language_code: Optional BCP-47 language tag (e.g., 'te-IN', 'hi-IN').
 
         Returns:
             str: Complete unified comedy system prompt.
@@ -73,17 +75,23 @@ class PersonalityManager:
         normalized_mode = self.validate_mode(mode)
         settings = get_settings()
         if not settings.DEBUG and normalized_mode in self._prompt_cache:
-            return self._prompt_cache[normalized_mode]
+            base_prompt = self._prompt_cache[normalized_mode]
+        else:
+            prompt_path = self.get_prompt_file_path(normalized_mode)
+            if not prompt_path.exists():
+                logger.error("Unified comedy prompt file not found at path: %s", prompt_path)
+                raise FileNotFoundError(f"Personality prompt file not found: {prompt_path}")
 
-        prompt_path = self.get_prompt_file_path(normalized_mode)
-        if not prompt_path.exists():
-            logger.error("Unified comedy prompt file not found at path: %s", prompt_path)
-            raise FileNotFoundError(f"Personality prompt file not found: {prompt_path}")
+            base_prompt = prompt_path.read_text(encoding="utf-8").strip()
+            self._prompt_cache[normalized_mode] = base_prompt
+            logger.debug("Loaded unified comedy prompt (%d chars)", len(base_prompt))
 
-        prompt_content = prompt_path.read_text(encoding="utf-8").strip()
-        self._prompt_cache[normalized_mode] = prompt_content
-        logger.debug("Loaded unified comedy prompt (%d chars)", len(prompt_content))
-        return prompt_content
+        if language_code and language_code.lower() not in ("auto", "indic-auto"):
+            from backend.services.languages import get_language_prompt_instruction
+            lang_instruction = get_language_prompt_instruction(language_code)
+            return f"{base_prompt}\n\n{lang_instruction}"
+
+        return base_prompt
 
     def clear_cache(self) -> None:
         """Clear cached system prompts (useful in tests or when prompt files change)."""

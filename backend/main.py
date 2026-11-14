@@ -71,12 +71,17 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 # Supported Indian languages for Gnani Prisma STT
 SUPPORTED_LANGUAGES: Dict[str, str] = {
+    "indic-auto": "Auto Detect (All Indian Languages)",
     "en-IN": "English (India)",
-    "te-IN": "Telugu",
-    "hi-IN": "Hindi",
-    "ta-IN": "Tamil",
-    "kn-IN": "Kannada",
-    "ml-IN": "Malayalam",
+    "te-IN": "Telugu (తెలుగు)",
+    "hi-IN": "Hindi (हिन्दी)",
+    "ta-IN": "Tamil (தமிழ்)",
+    "kn-IN": "Kannada (ಕನ್ನಡ)",
+    "ml-IN": "Malayalam (മലയാളം)",
+    "bn-IN": "Bengali (বাংলা)",
+    "mr-IN": "Marathi (मराठी)",
+    "gu-IN": "Gujarati (ગુજરાતી)",
+    "pa-IN": "Punjabi (ਪੰਜਾਬੀ)",
 }
 
 
@@ -129,7 +134,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = Field(default=None, description="Existing conversation ID or null for new")
     message: str = Field(..., min_length=1, max_length=2000, description="User message text")
     mode: str = Field(default="unified_comedy", description="Personality mode: 'unified_comedy'")
-    language: str = Field(default="en", description="Language code")
+    language: Optional[str] = Field(default=None, description="Language code (e.g. te-IN, hi-IN, indic-auto)")
 
 
 class ClearChatRequest(BaseModel):
@@ -244,7 +249,7 @@ async def api_status() -> Dict[str, Any]:
 )
 async def transcribe_audio(
     audio_file: UploadFile = File(..., description="WAV format audio recording"),
-    language_code: str = Form("en-IN", description="Selected BCP-47 language tag"),
+    language_code: str = Form("indic-auto", description="Selected BCP-47 language tag or indic-auto"),
 ) -> Dict[str, Any]:
     """
     Upload a WAV audio recording and return the speech-to-text transcript
@@ -317,7 +322,7 @@ async def transcribe_audio(
 @app.websocket("/api/v1/stt/stream")
 async def websocket_stt_stream(
     websocket: WebSocket,
-    language_code: str = "en-IN",
+    language_code: str = "indic-auto",
 ):
     """
     Real-time speech-to-text WebSocket stream.

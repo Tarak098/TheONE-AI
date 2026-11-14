@@ -66,10 +66,11 @@ class PrismaStreamService:
         """Check whether Prisma has valid API credentials configured."""
         return bool(self.api_key)
 
-    def build_headers(self, language_code: str = "en-IN") -> Dict[str, str]:
+    def build_headers(self, language_code: str = "indic-auto") -> Dict[str, str]:
         """
         Build required WebSocket upgrade headers for Gnani Prisma STT v3.
         Includes 'x-partials': 'true' to enable progressive interim transcription.
+        Supports 'indic-auto' for automatic Indian language detection and code-switching.
         """
         raw_key = (self.api_key or "").strip().strip("\r\n\t\"'“”‘’ ")
         if "=" in raw_key:
@@ -81,9 +82,13 @@ class PrismaStreamService:
         if not clean_key:
             raise PrismaStreamConfigError("Gnani Prisma STT API credentials are not configured.")
 
+        clean_lang = (language_code or "indic-auto").strip()
+        if clean_lang.lower() in ("auto", "indic-auto", ""):
+            clean_lang = "indic-auto"
+
         return {
             "x-api-key-id": clean_key,
-            "language_code": language_code or "en-IN",
+            "language_code": clean_lang,
             "model": "prisma-v3.0",
             "format": "transcribe",
             "x-sample-rate": "16000",
@@ -93,7 +98,7 @@ class PrismaStreamService:
     async def bridge_stream(
         self,
         client_ws: WebSocket,
-        language_code: str = "en-IN",
+        language_code: str = "indic-auto",
     ) -> None:
         """
         Bridge browser WebSocket audio frames with Gnani Prisma WebSocket STT.
@@ -194,7 +199,15 @@ class PrismaStreamService:
                     elif event_type == "final_transcript":
                         text = (data.get("text") or "").strip()
                         seg_idx = data.get("segment_index", 1)
-                        detected_lang = data.get("detected_language_code", language_code)
+                        raw_detected = str(data.get("detected_language_code") or data.get("language") or "").strip()
+                        from backend.services.languages import detect_language, normalize_language_code
+                        if raw_detected and raw_detected.lower() not in ("indic-auto", "auto"):
+                            detected_lang = normalize_language_code(raw_detected)
+                        elif text:
+                            detected_lang = detect_language(text, fallback_language="en-IN")
+                        else:
+                            detected_lang = normalize_language_code(language_code) if language_code != "indic-auto" else "en-IN"
+
                         logger.info("Final STT [seg=%d]: %s (lang=%s)", seg_idx, text, detected_lang)
                         await client_ws.send_json({
                             "type": "final",

@@ -85,7 +85,7 @@ class PrismaService:
     def transcribe_audio(
         self,
         audio_bytes: bytes,
-        language_code: str = "en-IN",
+        language_code: str = "indic-auto",
         filename: str = "recording.wav",
         format_type: str = "transcribe",
         itn_native_numerals: bool = True,
@@ -223,7 +223,19 @@ class PrismaService:
             transcript = ""
 
         request_id = str(data.get("request_id") or data.get("requestId") or "")
-        detected_lang = str(data.get("detected_language_code") or language_code)
+        raw_detected = str(
+            data.get("detected_language_code")
+            or data.get("language_code")
+            or data.get("language")
+            or ""
+        ).strip()
+        from backend.services.languages import detect_language, normalize_language_code
+        if raw_detected and raw_detected.lower() not in ("indic-auto", "auto"):
+            detected_lang = normalize_language_code(raw_detected)
+        elif transcript:
+            detected_lang = detect_language(str(transcript), fallback_language="en-IN")
+        else:
+            detected_lang = normalize_language_code(language_code) if language_code != "indic-auto" else "en-IN"
 
         logger.info(
             "Prisma STT transcription succeeded (RequestID: %s, Length: %d chars)",

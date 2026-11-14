@@ -45,6 +45,7 @@ class ChatTurnResult:
     provider: str
     model: str
     success: bool
+    language: str = "en-IN"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary representation."""
@@ -54,6 +55,7 @@ class ChatTurnResult:
             "mode": self.mode,
             "user_message": self.user_message,
             "assistant_response": self.assistant_response,
+            "language": self.language,
             "provider": self.provider,
             "model": self.model,
         }
@@ -154,16 +156,35 @@ class IntelligenceEngine:
         if session.mode != valid_mode:
             session.switch_mode(valid_mode)
 
-        # 4. Load Unified Comedy System Prompt (Adaptive, Mood-Independent Humour)
-        system_prompt = self.personality.get_system_prompt(valid_mode)
+        # Resolve target conversational language for this turn
+        from backend.services.languages import detect_language, normalize_language_code
+
+        raw_lang = (language or "").strip()
+        if not raw_lang or raw_lang in ("indic-auto", "auto", "default"):
+            effective_lang = detect_language(clean_message, fallback_language=session.last_language)
+        else:
+            norm_raw = normalize_language_code(raw_lang)
+            detected = detect_language(clean_message, fallback_language=norm_raw)
+            if norm_raw == "hi-IN" and detected in ("mr-IN", "hi-IN"):
+                effective_lang = "hi-IN" if "ळ" not in clean_message else "mr-IN"
+            elif norm_raw == "mr-IN" and detected in ("mr-IN", "hi-IN"):
+                effective_lang = "mr-IN"
+            else:
+                effective_lang = detected if detected != "en-IN" else norm_raw
+
+        session.last_language = effective_lang
+
+        # 4. Load Unified Comedy System Prompt tailored to effective conversational language
+        system_prompt = self.personality.get_system_prompt(valid_mode, language_code=effective_lang)
 
         # 5. Route to Active LLM Provider
         provider_name = self.active_provider
 
         logger.info(
-            "Executing intelligence turn (ConvID: %s, Mode: %s, Provider: %s, HistoryLength: %d turns)",
+            "Executing intelligence turn (ConvID: %s, Mode: %s, Lang: %s, Provider: %s, HistoryLength: %d turns)",
             session.conversation_id,
             valid_mode,
+            effective_lang,
             provider_name,
             len(session.messages),
         )
@@ -200,6 +221,7 @@ class IntelligenceEngine:
             user_message=clean_message,
             candidate_response=assistant_reply,
             mode=valid_mode,
+            language=effective_lang,
         )
 
         if not is_valid:
@@ -210,11 +232,11 @@ class IntelligenceEngine:
             )
             relevance_instruction = (
                 f"{system_prompt}\n\n"
-                f"CRITICAL RELEVANCE & SIMPLICITY CORRECTION: Your previous candidate response was rejected because: {failure_reason}. "
+                f"CRITICAL RELEVANCE, SIMPLICITY & LANGUAGE CORRECTION: Your previous candidate response was rejected because: {failure_reason}. "
                 f"User's exact message: {clean_message!r}. "
-                f"You MUST respond directly to what the user said using SIMPLE EVERYDAY ENGLISH like a funny savage friend. "
+                f"You MUST respond directly to what the user said in {effective_lang} like a funny savage friend. "
                 f"Avoid complicated words, formal vocabulary, or generic off-topic insults. "
-                f"Deliver EXACTLY ONE punchline in 3 to 10 words (maximum 15 words). No extra sentences."
+                f"Deliver EXACTLY ONE punchline in 3 to 10 words (maximum 15 words) in the target language. No extra sentences."
             )
             try:
                 if provider_name == "gemini":
@@ -237,15 +259,16 @@ class IntelligenceEngine:
             logger.info("Enforced strict 1-sentence rule: %r -> %r", assistant_reply, final_reply)
         assistant_reply = final_reply
 
-        # 7. Persist Turns in Conversation History
-        session.add_message(role="user", content=clean_message)
-        session.add_message(role="assistant", content=assistant_reply)
+        # 7. Persist Turns in Conversation History with associated language
+        session.add_message(role="user", content=clean_message, language=effective_lang)
+        session.add_message(role="assistant", content=assistant_reply, language=effective_lang)
 
         return ChatTurnResult(
             conversation_id=session.conversation_id,
             mode=valid_mode,
             user_message=clean_message,
             assistant_response=assistant_reply,
+            language=effective_lang,
             provider=provider_name,
             model=response_model,
             success=True,

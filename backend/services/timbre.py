@@ -262,7 +262,9 @@ class TimbreService:
         Falls back to default_voice if not specified.
         """
         if mode and mode.lower().strip() in ("roast_companion", "roast"):
-            return self.voice_roast
+            return self.voice_roast or "Zayan"
+        if mode and mode.lower().strip() in ("always_funny", "funny"):
+            return self.voice_funny or "Yashvi"
         return self.default_voice or self.voice_funny or "Yashvi"
 
     @classmethod
@@ -275,7 +277,7 @@ class TimbreService:
         Validate requested voice against allowed catalog.
 
         Args:
-            voice: Requested voice name (e.g. 'Yashvi', 'Zayan').
+            voice: Requested voice name (e.g. 'Yashvi', 'Zayan', 'Shivani').
 
         Returns:
             str: Canonical voice name.
@@ -287,7 +289,8 @@ class TimbreService:
             raise TimbreValidationError("Voice name cannot be empty.")
 
         clean_voice = voice.strip()
-        for canonical_name in SUPPORTED_VOICES:
+        all_voices = list(SUPPORTED_VOICES.keys()) + list(SUPPORTED_V3_VOICES) + ["Nalini", "Kaveri", "Deepak"]
+        for canonical_name in all_voices:
             if canonical_name.lower() == clean_voice.lower():
                 return canonical_name
 
@@ -357,20 +360,24 @@ class TimbreService:
         else:
             selected_voice = self.get_voice_for_mode(mode)
 
-        selected_language = language or self.language
         selected_sample_rate = sample_rate or self.sample_rate
 
-        # 3. Model Compatibility & Audio Tag Gate
-        # Yashvi and Zayan are official v2.5 voices (v3.0 rejects them)
-        if selected_voice in SUPPORTED_VOICES:
-            effective_model = "timbre-v2.5"
-            allow_tags = False
-        elif selected_voice in SUPPORTED_V3_VOICES and self.model == "timbre-v3.0":
-            effective_model = "timbre-v3.0"
-            allow_tags = True
+        # 3. Multilingual Model & Voice Compatibility Resolution
+        from backend.services.languages import detect_language, normalize_language_code, resolve_tts_voice_and_model
+
+        prelim_text = sanitize_tts_text(text, allow_tags=True)
+        if not language or language.lower() in ("auto", "indic-auto"):
+            selected_language = detect_language(prelim_text, fallback_language=self.language)
         else:
-            effective_model = self.model
-            allow_tags = False
+            detected = detect_language(prelim_text, fallback_language=language)
+            selected_language = detected if detected != "en-IN" else normalize_language_code(language)
+
+        selected_voice, effective_model = resolve_tts_voice_and_model(
+            requested_voice=selected_voice,
+            language_code=selected_language,
+            configured_model=self.model,
+        )
+        allow_tags = (effective_model == "timbre-v3.0")
 
         # 4. Text Sanitization & Prosody Optimization
         clean_text = sanitize_tts_text(text, allow_tags=allow_tags)

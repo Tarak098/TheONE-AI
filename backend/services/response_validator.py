@@ -29,8 +29,8 @@ PREFIX_FILLERS = re.compile(
     re.IGNORECASE,
 )
 
-# Common sentence terminal boundary pattern
-SENTENCE_SPLIT_PATTERN = re.compile(r"""(?<=[.!?])["')\]}]*\s+(?=[A-Z0-9"'“])""")
+# Common sentence terminal boundary pattern (supports Western .!? and Indic । ॥)
+SENTENCE_SPLIT_PATTERN = re.compile(r"""(?<=[.!?।॥])["')\]}]*\s+(?=[A-Z0-9\u0900-\u0D7F"'“])""")
 
 # Sensitive / Crisis keywords where humor/roasting is inappropriate
 SENSITIVE_KEYWORDS: Set[str] = {
@@ -201,9 +201,11 @@ def validate_response_quality(
     user_message: str,
     candidate_response: str,
     mode: str = "always_funny",
+    language: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """
-    Evaluate candidate response quality, length, and contextual relevance.
+    Evaluate candidate response quality, length, contextual relevance,
+    and target language compliance.
 
     Returns:
         Tuple[bool, str]: (is_valid, reason)
@@ -254,6 +256,14 @@ def validate_response_quality(
         resp_keywords = set(extract_content_words(cleaned_candidate))
         # Questions with content words generally shouldn't share zero domain vocabulary unless witty answer
         pass
+
+    # 6. Response language verification
+    if language and language not in ("en-IN", "en", "indic-auto", "auto"):
+        from backend.services.languages import detect_script_language
+        user_script = detect_script_language(user_message)
+        cand_script = detect_script_language(cleaned_candidate)
+        if user_script and not cand_script:
+            return False, f"Response was generated in English instead of target language ({language})."
 
     return True, "Response is valid and context-aligned."
 

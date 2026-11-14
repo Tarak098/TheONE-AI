@@ -21,6 +21,7 @@ const state = {
   activeVoice: 'Yashvi', // 'Yashvi' | 'Zayan' (independent of humour style)
   conversationId: null,
   conversationPhase: 'IDLE', // 'LISTENING' | 'THINKING' | 'SPEAKING' | 'SETTLING' | 'IDLE'
+  detectedLanguage: 'indic-auto', // Auto-detected or user selected language code
   orbState: 'idle', // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
   isRecording: false,
   audioContext: null,
@@ -472,7 +473,7 @@ function updateFloatingTranscript(userText, botText, mode) {
 // =============================================================================
 // Intelligence Engine & Chat Integration
 // =============================================================================
-async function sendChatMessage(messageText, sourceType = 'voice') {
+async function sendChatMessage(messageText, sourceType = 'voice', languageOverride = null) {
   const text = (messageText || '').trim();
   if (!text) return;
 
@@ -482,6 +483,9 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
   if (state.audioWorkletNode) {
     try { state.audioWorkletNode.port.postMessage({ command: 'pause' }); } catch (_) {}
   }
+
+  // Determine requested/detected language for this turn
+  const turnLang = languageOverride || (languageSelect ? languageSelect.value : 'indic-auto');
 
   // 1. Immediately display the user's recognised speech / message in the active chat area
   showLiveUserSpeech(text, sourceType === 'typed' ? 'typed' : 'voice');
@@ -495,7 +499,7 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
       conversation_id: state.conversationId,
       message: text,
       mode: state.activeMode,
-      language: languageSelect ? (languageSelect.value.split('-')[0] || 'en') : 'en',
+      language: turnLang,
     };
 
     const res = await fetch(`${state.apiBaseUrl}/api/v1/chat`, {
@@ -514,6 +518,8 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
     if (data && data.success) {
       state.conversationId = data.conversation_id;
       const reply = data.assistant_response || '';
+      const responseLang = data.language || turnLang || 'en-IN';
+      state.detectedLanguage = responseLang;
 
       // 3. Preserve AI response in Conversation History drawer (viewable anytime)
       const botBubble = appendMessageBubble('bot', reply, data.mode, data.model);
@@ -528,7 +534,7 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
         btnFloatReplay.style.display = 'none';
       }
 
-      // 5. Synthesize and play audio response aloud via Gnani Timbre TTS
+      // 5. Synthesize and play audio response aloud via Gnani Timbre TTS in response language
       await synthesizeAndPlayAudio(botBubble, reply, data.mode);
     } else {
       throw new Error((data && data.error) || 'Failed to receive a response.');
@@ -545,7 +551,7 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
 // =============================================================================
 // Audio Synthesis & Web Audio Playback (Gnani Timbre TTS)
 // =============================================================================
-async function synthesizeAndPlayAudio(bubble, text, mode) {
+async function synthesizeAndPlayAudio(bubble, text, mode, language = null) {
   const btnReplay = bubble ? bubble.querySelector('.btn-replay-audio') : null;
   const voicePill = bubble ? bubble.querySelector('.voice-badge-pill') : null;
 
@@ -556,6 +562,7 @@ async function synthesizeAndPlayAudio(bubble, text, mode) {
 
   try {
     const activeVoice = getActiveVoice();
+    const ttsLanguage = language || state.detectedLanguage || (languageSelect ? languageSelect.value : 'en-IN');
     const res = await fetch(`${state.apiBaseUrl}/api/v1/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -563,7 +570,7 @@ async function synthesizeAndPlayAudio(bubble, text, mode) {
         text: text,
         mode: 'unified_comedy',
         voice: activeVoice,
-        language: languageSelect ? languageSelect.value : 'en-IN',
+        language: ttsLanguage,
       }),
     });
 
@@ -707,7 +714,7 @@ function stopActiveAudio() {
 // Conversation History Drawer & Message Bubbles
 // =============================================================================
 
-function appendMessageBubble(role, content, mode, model) {
+function appendMessageBubble(role, content, mode, model, language = null) {
   state.transcriptCount++;
   if (transcriptCount) {
     transcriptCount.textContent = String(state.transcriptCount);
@@ -726,6 +733,7 @@ function appendMessageBubble(role, content, mode, model) {
   const tagLabel = 'Comedy AI';
   const modelText = model ? ` • ${model}` : '';
   const initialVoiceName = getActiveVoice();
+  const langBadge = language ? `<span class="bubble-tag" style="background: rgba(255,255,255,0.08); border-radius: 12px; padding: 2px 7px; font-size: 0.7rem; font-weight: 500;">🌐 ${escapeHtml(language)}</span>` : '';
 
   const footerHtml = isBot ? `
     <div class="bubble-footer">
@@ -744,6 +752,7 @@ function appendMessageBubble(role, content, mode, model) {
       <span class="bubble-avatar">${avatar}</span>
       <span class="bubble-sender">${senderName}</span>
       ${isBot ? `<span class="bubble-tag ${tagClass}">${tagLabel}${modelText}</span>` : ''}
+      ${langBadge}
       <span class="bubble-time">Just now</span>
     </div>
     <div class="bubble-content">${escapeHtml(content)}</div>
@@ -923,7 +932,7 @@ async function startRecording() {
   state.isTurnSubmitted = false;
   state.hasReceivedSpeech = false;
 
-  const targetLang = languageSelect ? languageSelect.value : 'en-IN';
+  const targetLang = languageSelect ? languageSelect.value : 'indic-auto';
 
   // 1. Establish FastAPI WebSocket bridge to Gnani Prisma STT v3
   const isSecure = window.location.protocol === 'https:';
@@ -983,6 +992,10 @@ async function startRecording() {
         state.confirmedTranscript = (state.confirmedTranscript ? state.confirmedTranscript + ' ' : '') + segText;
       }
       state.currentPartialTranscript = '';
+      if (data.language) {
+        state.detectedLanguage = data.language;
+        console.log(`[STT] Recognized language: ${data.language}`);
+      }
       const fullDisplay = state.confirmedTranscript;
       if (fullDisplay) {
         showLiveUserSpeech(fullDisplay, 'voice');
@@ -1155,8 +1168,8 @@ async function stopRecording() {
     state.isTurnSubmitted = true;
     setOrbState('thinking', 'Thinking...', 'TheONE AI is coming up with a comeback...');
     showLiveUserSpeech(finalUtterance, 'voice');
-    // Submit finalized turn to Gemma & Timbre TTS exactly once
-    await sendChatMessage(finalUtterance, 'voice');
+    // Submit finalized turn to Gemma & Timbre TTS exactly once with detected language
+    await sendChatMessage(finalUtterance, 'voice', state.detectedLanguage);
   } else if (!finalUtterance) {
     showError('No speech was detected. Tap the mic to speak again.');
     setOrbState('idle');
