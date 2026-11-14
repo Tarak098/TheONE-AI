@@ -14,6 +14,7 @@ from backend.config import Settings, get_settings
 from backend.services.conversation import ConversationManager
 from backend.services.evon import EvonService, EvonServiceUnavailableError
 from backend.services.gemini import GeminiService, GeminiServiceUnavailableError
+from backend.services.humour_engine import HumourEngine
 from backend.services.personality import PersonalityManager
 from backend.services.response_validator import (
     count_sentences,
@@ -78,6 +79,7 @@ class IntelligenceEngine:
         evon_service: Optional[EvonService] = None,
         personality_manager: Optional[PersonalityManager] = None,
         conversation_manager: Optional[ConversationManager] = None,
+        humour_engine: Optional[HumourEngine] = None,
         settings: Optional[Settings] = None,
     ) -> None:
         self._settings = settings or get_settings()
@@ -85,6 +87,7 @@ class IntelligenceEngine:
         self.evon = evon_service or EvonService(settings=self._settings)
         self.personality = personality_manager or PersonalityManager()
         self.conversations = conversation_manager or ConversationManager()
+        self.humour = humour_engine or HumourEngine()
 
     @property
     def active_provider(self) -> str:
@@ -174,17 +177,30 @@ class IntelligenceEngine:
 
         session.last_language = effective_lang
 
-        # 4. Load Unified Comedy System Prompt tailored to effective conversational language
-        system_prompt = self.personality.get_system_prompt(valid_mode, language_code=effective_lang)
+        # 4. Context-First Humour Engine Analysis (Topic, Intent, Comedic Angle, Anti-Repetition)
+        humour_ctx = self.humour.build_humour_context(
+            user_message=clean_message,
+            session=session,
+            language_code=effective_lang,
+        )
 
-        # 5. Route to Active LLM Provider
+        # 5. Load Unified Comedy System Prompt tailored to effective language & situational context
+        system_prompt = self.personality.get_system_prompt(
+            valid_mode,
+            language_code=effective_lang,
+            humour_context=humour_ctx,
+        )
+
+        # 6. Route to Active LLM Provider
         provider_name = self.active_provider
 
         logger.info(
-            "Executing intelligence turn (ConvID: %s, Mode: %s, Lang: %s, Provider: %s, HistoryLength: %d turns)",
+            "Executing intelligence turn (ConvID: %s, Mode: %s, Lang: %s, Topic: %s, Angle: %s, Provider: %s, History: %d)",
             session.conversation_id,
             valid_mode,
             effective_lang,
+            humour_ctx.topic.value,
+            humour_ctx.technique.value,
             provider_name,
             len(session.messages),
         )
@@ -216,12 +232,14 @@ class IntelligenceEngine:
                 f"Unsupported LLM provider '{provider_name}'. Supported providers: 'gemini', 'evon'."
             )
 
-        # 6. Response Quality & Context Relevance Validation
+        # 7. Response Quality & Context Relevance Validation
         is_valid, failure_reason = validate_response_quality(
             user_message=clean_message,
             candidate_response=assistant_reply,
             mode=valid_mode,
             language=effective_lang,
+            banned_openers=humour_ctx.banned_openers,
+            banned_phrases=humour_ctx.banned_phrases,
         )
 
         if not is_valid:
@@ -259,7 +277,14 @@ class IntelligenceEngine:
             logger.info("Enforced strict 1-sentence rule: %r -> %r", assistant_reply, final_reply)
         assistant_reply = final_reply
 
-        # 7. Persist Turns in Conversation History with associated language
+        # 8. Record Turn Metadata for Multi-turn Continuity & Anti-Repetition
+        first_words = " ".join(assistant_reply.split()[:2])
+        session.record_turn_metadata(
+            topic=humour_ctx.topic.value,
+            assistant_opener=first_words,
+        )
+
+        # 9. Persist Turns in Conversation History with associated language
         session.add_message(role="user", content=clean_message, language=effective_lang)
         session.add_message(role="assistant", content=assistant_reply, language=effective_lang)
 

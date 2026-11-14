@@ -9,7 +9,7 @@ comedy-first identity never changes.
 from enum import Enum
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from backend.config import get_settings
 
@@ -60,14 +60,20 @@ class PersonalityManager:
         # Fallback to funny_mode.txt if unified file is missing
         return self.prompts_dir / "funny_mode.txt"
 
-    def get_system_prompt(self, mode: Optional[str] = None, language_code: Optional[str] = None) -> str:
+    def get_system_prompt(
+        self,
+        mode: Optional[str] = None,
+        language_code: Optional[str] = None,
+        humour_context: Optional[Any] = None,
+    ) -> str:
         """
         Retrieve TheONE AI's unified comedy system prompt using memory caching,
-        enhanced with language-specific guidance if a language is specified.
+        enhanced with language-specific guidance and situational humour context.
 
         Args:
             mode: Optional mode parameter (defaults to unified_comedy).
             language_code: Optional BCP-47 language tag (e.g., 'te-IN', 'hi-IN').
+            humour_context: Optional HumourContext object with situational directives.
 
         Returns:
             str: Complete unified comedy system prompt.
@@ -86,12 +92,20 @@ class PersonalityManager:
             self._prompt_cache[normalized_mode] = base_prompt
             logger.debug("Loaded unified comedy prompt (%d chars)", len(base_prompt))
 
+        prompt_parts = [base_prompt]
+
         if language_code and language_code.lower() not in ("auto", "indic-auto"):
             from backend.services.languages import get_language_prompt_instruction
             lang_instruction = get_language_prompt_instruction(language_code)
-            return f"{base_prompt}\n\n{lang_instruction}"
+            prompt_parts.append(lang_instruction)
 
-        return base_prompt
+        if humour_context is not None:
+            if hasattr(humour_context, "format_prompt_injection"):
+                prompt_parts.append(humour_context.format_prompt_injection())
+            elif isinstance(humour_context, str):
+                prompt_parts.append(humour_context)
+
+        return "\n\n".join(prompt_parts)
 
     def clear_cache(self) -> None:
         """Clear cached system prompts (useful in tests or when prompt files change)."""

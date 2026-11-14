@@ -84,6 +84,26 @@ GENERIC_DISCONNECT_PUNCHLINES = [
         re.compile(r"\b(?:money|bank|broke|account|dollars|salary|cash|spend|spent|buy|bought|wallet|cost|expensive)\b", re.I),
         "Mentions empty bank account when user message was not about finances",
     ),
+    (
+        re.compile(r"\b(?:smoke detector)\b", re.I),
+        re.compile(r"\b(?:cook|cooking|cooked|burned|burnt|dinner|lunch|food|kitchen|toast|smoke|fire)\b", re.I),
+        "Mentions smoke detector when user message was not about burnt food or cooking",
+    ),
+    (
+        re.compile(r"\b(?:gym membership)\b", re.I),
+        re.compile(r"\b(?:gym|workout|exercise|running|run|marathon|fitness|cardio|weights)\b", re.I),
+        "Mentions gym membership when user message was not about fitness or gym",
+    ),
+    (
+        re.compile(r"\b(?:buffering)\b", re.I),
+        re.compile(r"\b(?:buffering|stream|streaming|video|internet|wifi|slow|loading|understand|topic)\b", re.I),
+        "Mentions buffering when user message was not about streaming, internet, or understanding",
+    ),
+    (
+        re.compile(r"\b(?:talent escaped)\b", re.I),
+        re.compile(r"\b(?:talent|selected|audition|promotion|won|achievement|skills)\b", re.I),
+        "Mentions talent escaped when user did not mention achievement or selection",
+    ),
 ]
 
 
@@ -202,10 +222,12 @@ def validate_response_quality(
     candidate_response: str,
     mode: str = "always_funny",
     language: Optional[str] = None,
+    banned_openers: Optional[List[str]] = None,
+    banned_phrases: Optional[List[str]] = None,
 ) -> Tuple[bool, str]:
     """
     Evaluate candidate response quality, length, contextual relevance,
-    and target language compliance.
+    target language compliance, and anti-repetition rules.
 
     Returns:
         Tuple[bool, str]: (is_valid, reason)
@@ -233,7 +255,22 @@ def validate_response_quality(
     if clean_user and clean_user == clean_cand:
         return False, "Response simply repeats the user's input."
 
-    # 3. Disconnected stock punchline detection
+    # 3. Anti-repetition & banned opener enforcement
+    if banned_openers:
+        lower_cand = cleaned_candidate.lower()
+        for opener in banned_openers:
+            clean_op = opener.strip().lower()
+            if clean_op and (lower_cand.startswith(clean_op + " ") or lower_cand == clean_op or lower_cand.startswith(clean_op + ",")):
+                return False, f"Response starts with banned repetitive opener '{opener}'."
+
+    if banned_phrases:
+        lower_cand = cleaned_candidate.lower()
+        for phrase in banned_phrases:
+            clean_p = phrase.strip().lower()
+            if clean_p and clean_p in lower_cand:
+                return False, f"Response contains banned cliché phrase '{phrase}'."
+
+    # 4. Disconnected stock punchline detection
     for response_pattern, user_allowed_pattern, reason in GENERIC_DISCONNECT_PUNCHLINES:
         if response_pattern.search(cleaned_candidate):
             if not user_allowed_pattern.search(user_message):

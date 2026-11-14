@@ -310,7 +310,7 @@ class GeminiService:
                 # HTTP 429 / Quota: If on gemma, attempt failover to high-quota flash models
                 if code == 429 or "RESOURCE_EXHAUSTED" in status_str or "quota" in msg.lower():
                     if is_gemma:
-                        for fallback_model in ("gemini-2.5-flash", "gemini-2.5-flash-lite"):
+                        for fallback_model in ("gemini-2.5-flash", "gemini-2.0-flash-lite"):
                             logger.warning(
                                 "Gemma rate/token limit reached (429 RESOURCE_EXHAUSTED). "
                                 "Failing over to %s for seamless continuity...",

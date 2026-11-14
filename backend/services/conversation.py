@@ -45,8 +45,43 @@ class ConversationSession:
         self.max_turns = max_turns
         self.last_language: str = "en-IN"
         self.messages: List[ChatMessage] = []
+        self.recent_openers: List[str] = []
+        self.recent_topics: List[str] = []
+        self.running_entities: List[str] = []
         self.created_at = datetime.now(timezone.utc)
         self.last_updated_at = datetime.now(timezone.utc)
+
+    def record_turn_metadata(
+        self,
+        topic: Optional[str] = None,
+        assistant_opener: Optional[str] = None,
+        user_entity: Optional[str] = None,
+    ) -> None:
+        """Record topic, opener phrase, and user subject for continuity & anti-repetition."""
+        if topic:
+            self.recent_topics.append(topic)
+            if len(self.recent_topics) > 10:
+                self.recent_topics = self.recent_topics[-10:]
+        if assistant_opener:
+            clean_op = assistant_opener.strip().lower()
+            if clean_op:
+                self.recent_openers.append(clean_op)
+                if len(self.recent_openers) > 6:
+                    self.recent_openers = self.recent_openers[-6:]
+        if user_entity:
+            clean_ent = user_entity.strip()
+            if clean_ent and clean_ent not in self.running_entities:
+                self.running_entities.append(clean_ent)
+                if len(self.running_entities) > 8:
+                    self.running_entities = self.running_entities[-8:]
+
+    def get_recent_openers(self) -> List[str]:
+        """Return list of recent assistant response openers (first 1-2 words)."""
+        return list(self.recent_openers)
+
+    def get_potential_callbacks(self) -> List[str]:
+        """Return list of notable user subjects/entities from earlier turns."""
+        return list(self.running_entities)
 
     def add_message(
         self,
@@ -84,6 +119,9 @@ class ConversationSession:
     def clear(self) -> None:
         """Clear all messages in this conversation."""
         self.messages.clear()
+        self.recent_openers.clear()
+        self.recent_topics.clear()
+        self.running_entities.clear()
         self.last_updated_at = datetime.now(timezone.utc)
 
     def switch_mode(self, new_mode: str) -> None:
