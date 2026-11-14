@@ -96,11 +96,12 @@ class GeminiService:
 
         if self._client is None or self._client_loop != current_loop:
             try:
-                clean_key = (self.api_key or "").strip().strip("\r\n\t\"'")
+                clean_key = (self.api_key or "").strip().strip("\r\n\t\"'“”‘’ ")
                 if "=" in clean_key:
                     prefix, _, after = clean_key.partition("=")
                     if prefix.strip().replace("_", "").isalnum():
-                        clean_key = after.strip().strip("\r\n\t\"'")
+                        clean_key = after.strip().strip("\r\n\t\"'“”‘’ ")
+                clean_key = "".join(c for c in clean_key if 33 <= ord(c) <= 126)
 
                 http_options = types.HttpOptions(api_version="v1beta")
                 self._client = genai.Client(

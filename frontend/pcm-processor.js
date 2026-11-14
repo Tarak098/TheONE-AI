@@ -7,6 +7,9 @@
  *
  * Emits binary frames of 512 samples (1024 bytes) at ~32ms intervals
  * for real-time streaming to Gnani Prisma STT v3.
+ *
+ * Supports pause/resume commands to prevent acoustic echo / audio leakage
+ * into the STT stream while AI is thinking or speaking.
  */
 
 class PCMProcessor extends AudioWorkletProcessor {
@@ -21,9 +24,31 @@ class PCMProcessor extends AudioWorkletProcessor {
     this.frameSamples = 512; // 1024 bytes of 16-bit PCM
     this.outputBuffer = new Int16Array(this.frameSamples);
     this.outputIndex = 0;
+    this.isPaused = false;
+
+    this.port.onmessage = (event) => {
+      const data = event.data || {};
+      if (data.command === 'pause') {
+        this.isPaused = true;
+        this.outputIndex = 0;
+        this.resampleIndex = 0.0;
+      } else if (data.command === 'resume') {
+        this.isPaused = false;
+        this.outputIndex = 0;
+        this.resampleIndex = 0.0;
+      } else if (data.command === 'clear') {
+        this.outputIndex = 0;
+        this.resampleIndex = 0.0;
+      }
+    };
   }
 
   process(inputs, outputs, parameters) {
+    // Drop all audio frames if paused during AI thinking, speaking, or settling
+    if (this.isPaused) {
+      return true;
+    }
+
     const input = inputs[0];
     if (!input || input.length === 0) return true;
 

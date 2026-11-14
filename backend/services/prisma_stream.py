@@ -71,11 +71,11 @@ class PrismaStreamService:
         Build required WebSocket upgrade headers for Gnani Prisma STT v3.
         Includes 'x-partials': 'true' to enable progressive interim transcription.
         """
-        raw_key = (self.api_key or "").strip().strip("\"'“”‘’ ")
+        raw_key = (self.api_key or "").strip().strip("\r\n\t\"'“”‘’ ")
         if "=" in raw_key:
             prefix, _, after = raw_key.partition("=")
             if prefix.strip().replace("_", "").isalnum():
-                raw_key = after.strip().strip("\"'“”‘’ ")
+                raw_key = after.strip().strip("\r\n\t\"'“”‘’ ")
         clean_key = "".join(c for c in raw_key if 33 <= ord(c) <= 126)
 
         if not clean_key:
@@ -131,9 +131,14 @@ class PrismaStreamService:
             )
         except Exception as err:
             logger.error("Failed to connect to Gnani Prisma WebSocket: %s", err)
+            err_msg = str(err)
+            if clean_key and clean_key in err_msg:
+                err_msg = err_msg.replace(clean_key, "[REDACTED]")
+            if "header value" in err_msg.lower():
+                err_msg = "Invalid API key format or header characters. Check GNANI_API_KEY environment variable."
             await client_ws.send_json({
                 "type": "error",
-                "message": f"Could not connect to Gnani speech service: {err}",
+                "message": f"Could not connect to Gnani speech service: {err_msg}",
             })
             await client_ws.close(code=1011)
             return

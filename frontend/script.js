@@ -20,11 +20,13 @@ const state = {
   activeMode: 'unified_comedy',
   activeVoice: 'Yashvi', // 'Yashvi' | 'Zayan' (independent of humour style)
   conversationId: null,
+  conversationPhase: 'IDLE', // 'LISTENING' | 'THINKING' | 'SPEAKING' | 'SETTLING' | 'IDLE'
   orbState: 'idle', // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
   isRecording: false,
   audioContext: null,
   mediaStream: null,
   scriptProcessor: null,
+  silenceGainNode: null,
   audioWorkletNode: null,
   streamingWs: null,
   confirmedTranscript: '',
@@ -476,6 +478,10 @@ async function sendChatMessage(messageText, sourceType = 'voice') {
 
   hideError();
   setOrbState('thinking');
+  state.conversationPhase = 'THINKING';
+  if (state.audioWorkletNode) {
+    try { state.audioWorkletNode.port.postMessage({ command: 'pause' }); } catch (_) {}
+  }
 
   // 1. Immediately display the user's recognised speech / message in the active chat area
   showLiveUserSpeech(text, sourceType === 'typed' ? 'typed' : 'voice');
@@ -622,6 +628,13 @@ async function playAudioBuffer(buffer, buttonElement) {
   // Stop any currently playing audio source
   stopActiveAudio();
 
+  // Enforce half-duplex phase SPEAKING: strictly mute and drop any mic capture
+  state.conversationPhase = 'SPEAKING';
+  if (state.audioWorkletNode) {
+    try { state.audioWorkletNode.port.postMessage({ command: 'pause' }); } catch (_) {}
+  }
+  console.log('[AudioDiag] Beginning audio playback. Phase transition: SPEAKING');
+
   // Create Source and AnalyserNode for real-time reactivity
   const source = audioCtx.createBufferSource();
   source.buffer = buffer;
@@ -650,10 +663,23 @@ async function playAudioBuffer(buffer, buttonElement) {
       buttonElement.classList.remove('playing');
       buttonElement.innerHTML = '<span>🔁</span><span>Replay Voice</span>';
     }
-    // Return to STATE 1 – IDLE
-    setOrbState('idle');
-    // Requirement 10: After actual AI audio playback completes, fade out the temporary transcription
-    fadeOutLiveTranscription();
+
+    // Acoustic Settling Window (300ms): allow room echo and speaker decay to fade
+    state.conversationPhase = 'SETTLING';
+    console.log('[AudioDiag] Audio playback ended. Acoustic settling window: 300ms');
+
+    // Clear stale audio buffers in worklet
+    if (state.audioWorkletNode) {
+      try { state.audioWorkletNode.port.postMessage({ command: 'clear' }); } catch (_) {}
+    }
+
+    setTimeout(() => {
+      state.conversationPhase = 'IDLE';
+      setOrbState('idle');
+      console.log('[AudioDiag] Settling complete. Phase transition: IDLE');
+      // Requirement 10: After actual AI audio playback completes, fade out the temporary transcription
+      fadeOutLiveTranscription();
+    }, 300);
   };
 
   try {
@@ -661,6 +687,7 @@ async function playAudioBuffer(buffer, buttonElement) {
   } catch (err) {
     console.warn('Buffer start error:', err);
     stopActiveAudio();
+    state.conversationPhase = 'IDLE';
     setOrbState('idle');
   }
 }
@@ -804,6 +831,12 @@ function releaseMicrophone() {
     } catch (_) {}
     state.scriptProcessor = null;
   }
+  if (state.silenceGainNode) {
+    try {
+      state.silenceGainNode.disconnect();
+    } catch (_) {}
+    state.silenceGainNode = null;
+  }
   if (state.micAnalyser) {
     try { state.micAnalyser.disconnect(); } catch (_) {}
     state.micAnalyser = null;
@@ -829,7 +862,8 @@ function setupScriptProcessorFallback(source, audioCtx) {
   let pcmIndex = 0;
 
   scriptNode.onaudioprocess = (e) => {
-    if (!state.isRecording) return;
+    // Half-duplex gate: Only forward frames while actively in LISTENING phase
+    if (!state.isRecording || state.conversationPhase !== 'LISTENING') return;
     const input = e.inputBuffer.getChannelData(0);
     const len = input.length;
 
@@ -844,7 +878,7 @@ function setupScriptProcessorFallback(source, audioCtx) {
       pcmBuffer[pcmIndex++] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
 
       if (pcmIndex >= frameSamples) {
-        if (state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN) {
+        if (state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN && state.conversationPhase === 'LISTENING') {
           state.streamingWs.send(pcmBuffer.buffer);
         }
         pcmBuffer = new Int16Array(frameSamples);
@@ -856,7 +890,13 @@ function setupScriptProcessorFallback(source, audioCtx) {
   };
 
   source.connect(scriptNode);
-  scriptNode.connect(audioCtx.destination);
+  // Connect to a silent zero-gain node so the audio processing thread runs
+  // without routing raw microphone audio directly into speaker output (prevents feedback loops)
+  const silenceGain = audioCtx.createGain();
+  silenceGain.gain.value = 0;
+  scriptNode.connect(silenceGain);
+  silenceGain.connect(audioCtx.destination);
+  state.silenceGainNode = silenceGain;
   state.scriptProcessor = scriptNode;
 }
 
@@ -971,22 +1011,48 @@ async function startRecording() {
     state.streamingWs = null;
   };
 
-  // 2. Request user microphone
+  // 2. Request user microphone with ideal acoustic processing constraints
+  const idealConstraints = {
+    channelCount: { ideal: 1 },
+    echoCancellation: { ideal: true },
+    noiseSuppression: { ideal: true },
+    autoGainControl: { ideal: true },
+    sampleRate: { ideal: 16000 },
+  };
+
   try {
-    state.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-  } catch (err) {
-    closeStreamingWs();
-    setOrbState('error', 'Mic Denied', 'Microphone permission was denied.');
-    showError(err.name === 'NotAllowedError' ? 'Microphone permission denied.' : `Microphone error: ${err.message}`);
-    return;
+    state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: idealConstraints });
+  } catch (constraintErr) {
+    console.warn('[AudioDiag] Ideal constraints rejected, retrying with standard constraints:', constraintErr);
+    try {
+      state.mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    } catch (standardErr) {
+      console.warn('[AudioDiag] Standard constraints rejected, using basic audio fallback:', standardErr);
+      try {
+        state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        closeStreamingWs();
+        setOrbState('error', 'Mic Denied', 'Microphone permission was denied.');
+        showError(err.name === 'NotAllowedError' ? 'Microphone permission denied.' : `Microphone error: ${err.message}`);
+        return;
+      }
+    }
   }
+
+  // Diagnostic logging of actual hardware/browser applied settings
+  try {
+    const audioTrack = state.mediaStream.getAudioTracks()[0];
+    if (audioTrack && audioTrack.getSettings) {
+      console.log('[AudioDiag] Applied microphone track settings:', audioTrack.getSettings());
+    }
+  } catch (_) {}
 
   // 3. Connect Web Audio Pipeline
   try {
@@ -1001,8 +1067,10 @@ async function startRecording() {
 
     // Set recording state & start timer
     state.isRecording = true;
+    state.conversationPhase = 'LISTENING';
     state.recordingStartTime = Date.now();
     state.timerInterval = setInterval(updateRecordingTimer, 500);
+    console.log('[AudioDiag] Microphone capture active. Phase: LISTENING');
 
     // Setup AudioWorklet streaming (fallback to ScriptProcessorNode)
     let workletInitialized = false;
@@ -1011,13 +1079,20 @@ async function startRecording() {
         await audioCtx.audioWorklet.addModule('/pcm-processor.js');
         const workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
         workletNode.port.onmessage = (e) => {
-          if (state.isRecording && state.streamingWs && state.streamingWs.readyState === WebSocket.OPEN) {
+          // Half-duplex gate: Only send frames when strictly in LISTENING phase
+          if (
+            state.isRecording &&
+            state.conversationPhase === 'LISTENING' &&
+            state.streamingWs &&
+            state.streamingWs.readyState === WebSocket.OPEN
+          ) {
             state.streamingWs.send(e.data);
           }
         };
         source.connect(workletNode);
         state.audioWorkletNode = workletNode;
         workletInitialized = true;
+        console.log('[AudioDiag] AudioWorklet initialized and bound to stream.');
       } catch (e) {
         console.debug('AudioWorklet unavailable, using ScriptProcessor fallback:', e);
       }
@@ -1025,6 +1100,7 @@ async function startRecording() {
 
     if (!workletInitialized) {
       setupScriptProcessorFallback(source, audioCtx);
+      console.log('[AudioDiag] ScriptProcessor fallback initialized with 0-gain sink.');
     }
 
     // Set orb state to listening
@@ -1041,6 +1117,12 @@ async function startRecording() {
 async function stopRecording() {
   if (!state.isRecording && !state.streamingWs) return;
   state.isRecording = false;
+  state.conversationPhase = 'THINKING';
+  console.log('[AudioDiag] Recording stopped. Phase transition: THINKING');
+
+  if (state.audioWorkletNode) {
+    try { state.audioWorkletNode.port.postMessage({ command: 'pause' }); } catch (_) {}
+  }
 
   clearInterval(state.timerInterval);
   state.timerInterval = null;
