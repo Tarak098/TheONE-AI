@@ -127,3 +127,67 @@ def test_scenario_6_multiple_consecutive_turns_without_duplicates():
     # When clear chat is clicked, history resets cleanly
     assert "clearConversationHistory" in js_content
     assert "state.conversationId = null" in js_content
+
+
+def test_real_time_chunking_and_partial_transcription():
+    """
+    Verify real-time chunk capture, periodic dispatch, and partial UI updates.
+    """
+    js_content = (FRONTEND_DIR / "script.js").read_text(encoding="utf-8")
+
+    # Periodic chunk capture and processing
+    assert "processPartialChunk" in js_content
+    assert "setInterval(processPartialChunk" in js_content
+    assert "state.isChunkProcessing" in js_content
+
+    # Partial transcription status updates
+    assert "showLiveUserSpeech(partialText, 'partial')" in js_content
+    assert "state.lastPartialTranscript" in js_content
+
+
+def test_vad_pause_detection_and_background_noise_handling():
+    """
+    Verify voice activity detection, pause detection (1.8s silence window),
+    and graceful handling of background noise / silence.
+    """
+    js_content = (FRONTEND_DIR / "script.js").read_text(encoding="utf-8")
+
+    # Audio RMS calculation for speech vs silence
+    assert "Math.sqrt(sumSquares" in js_content or "rms" in js_content
+    assert "SPEECH_THRESHOLD" in js_content
+    assert "state.silenceStartTime" in js_content
+    assert "1800" in js_content  # Pause detection interval in ms
+
+
+def test_transcription_persistence_and_fade_out_lifecycle():
+    """
+    Verify that temporary transcription remains visible during thinking and playback,
+    and fades out cleanly only after actual AI audio playback completes.
+    """
+    js_content = (FRONTEND_DIR / "script.js").read_text(encoding="utf-8")
+    css_content = (FRONTEND_DIR / "style.css").read_text(encoding="utf-8")
+
+    # Fade out function defined
+    assert "fadeOutLiveTranscription" in js_content
+    assert "cancelFadeOut" in js_content
+
+    # Called on audio playback onended
+    assert "source.onended = () => {" in js_content
+    assert "fadeOutLiveTranscription();" in js_content
+
+    # CSS transition for smooth fade out
+    assert ".floating-transcript-card.fade-out" in css_content
+    assert "opacity: 0" in css_content
+
+
+def test_microphone_error_resilience():
+    """
+    Verify microphone permission denied and device errors are caught gracefully.
+    """
+    js_content = (FRONTEND_DIR / "script.js").read_text(encoding="utf-8")
+
+    assert "NotAllowedError" in js_content
+    assert "Microphone permission denied" in js_content
+    assert "setOrbState('error', 'Mic Denied'" in js_content
+
+

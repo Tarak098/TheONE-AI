@@ -126,6 +126,7 @@ class Settings(BaseSettings):
         - Accidental variable prefix (e.g., 'GNANI_API_KEY=xxx' -> 'xxx')
         - Surrounding double or single quotes ('"xxx"' -> 'xxx')
         - Leading/trailing whitespace, newlines, carriage returns, tabs
+        - Non-printable or control characters to ensure HTTP header compliance
         """
         if value is None:
             return None
@@ -137,10 +138,10 @@ class Settings(BaseSettings):
             prefix, _, after = val_str.partition("=")
             if prefix.strip().replace("_", "").isalnum():
                 val_str = after.strip()
-        # Strip surrounding quotes
-        while (val_str.startswith('"') and val_str.endswith('"')) or (val_str.startswith("'") and val_str.endswith("'")):
-            val_str = val_str[1:-1].strip()
-        val_str = val_str.strip().strip("\r\n\t\"'")
+        # Strip surrounding quotes and special punctuation quotes
+        val_str = val_str.strip("\"'“”‘’ \t\r\n")
+        # Keep only printable ASCII characters without whitespace
+        val_str = "".join(c for c in val_str if 33 <= ord(c) <= 126)
         return val_str if val_str else None
 
     # Credential Resolution Properties

@@ -5,6 +5,7 @@ Main entry point providing core routing, CORS configuration,
 health checks, Gnani Prisma STT, and the AI Intelligence Engine (Evon v3.3).
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
@@ -281,7 +282,8 @@ async def transcribe_audio(
 
     filename = audio_file.filename or "recording.wav"
     try:
-        result = prisma_service.transcribe_audio(
+        result = await asyncio.to_thread(
+            prisma_service.transcribe_audio,
             audio_bytes=audio_bytes,
             language_code=normalized_lang,
             filename=filename,

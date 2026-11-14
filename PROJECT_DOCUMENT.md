@@ -59,8 +59,9 @@
    - User toggles between `Yashvi` (Female) and `Zayan` (Male) directly via the top navigation bar.
    - Voice selection is completely independent of conversational humor style and persisted in `localStorage`.
 5. **Secondary Controls & Visual Feedback**:
-   - **Live Recognised Speech Display**: Shows the user's recognised speech (Prisma STT transcription) or typed message immediately in the active chat area so the user can verify what TheONE AI heard.
+   - **Real-Time Speech Transcription**: Real-time chunk-based STT transcription with Gnani Prisma. Words update dynamically in a temporary live transcription area while the user is speaking.
    - **Voice/Audio-Only AI Responses**: The AI responds purely via voice audio through Gnani Timbre TTS without displaying AI response textboxes, message cards, or chat bubbles on the active screen.
+   - **Playback-Linked Transcription Lifecycle**: The live transcription remains visible during AI thinking and speech playback, and smoothly fades out after playback completes.
    - **Full Conversation History Drawer**: Both user inputs and AI replies are preserved in the slide-over transcript drawer with voice replay buttons and timestamps.
    - Light and dark theme toggle.
 

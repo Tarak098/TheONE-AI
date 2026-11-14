@@ -673,6 +673,13 @@ input {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.floating-transcript-card.fade-out {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  pointer-events: none;
 }
 
 @keyframes transcript-pop {
