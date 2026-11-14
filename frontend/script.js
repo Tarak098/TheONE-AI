@@ -385,16 +385,63 @@ function selectVoice(voiceName) {
 }
 
 // =============================================================================
+// Live Recognised Speech Display & History
+// (Active area shows recognised user speech; TheONE AI responds via voice only)
+// =============================================================================
+function showLiveUserSpeech(userText, type = 'voice') {
+  if (!floatingTranscript) return;
+
+  if (floatUserText) {
+    floatUserText.textContent = userText;
+  }
+
+  // AI-generated response text is strictly hidden in the live active conversation area
+  if (floatBotText) {
+    floatBotText.textContent = '';
+    floatBotText.style.display = 'none';
+  }
+  if (btnFloatReplay) {
+    btnFloatReplay.style.display = 'none';
+  }
+
+  if (floatModePill) {
+    if (type === 'listening') {
+      floatModePill.textContent = '🎙️ Listening...';
+      floatModePill.className = 'transcript-mode-pill tag-listening';
+    } else if (type === 'transcribing') {
+      floatModePill.textContent = '⚡ Transcribing...';
+      floatModePill.className = 'transcript-mode-pill tag-transcribing';
+    } else if (type === 'typed') {
+      floatModePill.textContent = '💬 Your Message';
+      floatModePill.className = 'transcript-mode-pill tag-user';
+    } else {
+      floatModePill.textContent = '🎙️ Recognised Speech';
+      floatModePill.className = 'transcript-mode-pill tag-user';
+    }
+  }
+
+  floatingTranscript.style.display = 'flex';
+}
+
+function updateFloatingTranscript(userText, botText, mode) {
+  // Legacy compatibility: only renders user speech, never displays live bot text
+  showLiveUserSpeech(userText, 'voice');
+}
+
+// =============================================================================
 // Intelligence Engine & Chat Integration
 // =============================================================================
-async function sendChatMessage(messageText) {
+async function sendChatMessage(messageText, sourceType = 'voice') {
   const text = (messageText || '').trim();
   if (!text) return;
 
   hideError();
   setOrbState('thinking');
 
-  // Append user bubble to transcript history
+  // 1. Immediately display the user's recognised speech / message in the active chat area
+  showLiveUserSpeech(text, sourceType === 'typed' ? 'typed' : 'voice');
+
+  // 2. Append user bubble to transcript history drawer (stored once, avoiding duplicates)
   appendMessageBubble('user', text, state.activeMode);
   if (textInput) textInput.value = '';
 
@@ -423,13 +470,20 @@ async function sendChatMessage(messageText) {
       state.conversationId = data.conversation_id;
       const reply = data.assistant_response || '';
 
-      // Append bot response to transcript history drawer
+      // 3. Preserve AI response in Conversation History drawer (viewable anytime)
       const botBubble = appendMessageBubble('bot', reply, data.mode, data.model);
 
-      // Update Live Floating Transcript Card on main stage
-      updateFloatingTranscript(text, reply, data.mode);
+      // 4. Do NOT display AI response text in the live active conversation area!
+      // TheONE AI responds through voice/audio only.
+      if (floatBotText) {
+        floatBotText.textContent = '';
+        floatBotText.style.display = 'none';
+      }
+      if (btnFloatReplay) {
+        btnFloatReplay.style.display = 'none';
+      }
 
-      // Synthesize and play audio response via Gnani Timbre TTS
+      // 5. Synthesize and play audio response aloud via Gnani Timbre TTS
       await synthesizeAndPlayAudio(botBubble, reply, data.mode);
     } else {
       throw new Error((data && data.error) || 'Failed to receive a response.');
@@ -503,10 +557,9 @@ async function synthesizeAndPlayAudio(bubble, text, mode) {
       btnReplay.onclick = () => playAudioBuffer(audioBuffer, btnReplay);
     }
 
-    // Setup Replay Button on the Floating Transcript
+    // Setup Replay Button on the Floating Transcript (Hidden in live area: response is voice only)
     if (btnFloatReplay) {
-      btnFloatReplay.style.display = 'inline-flex';
-      btnFloatReplay.onclick = () => playAudioBuffer(audioBuffer, btnFloatReplay);
+      btnFloatReplay.style.display = 'none';
     }
 
     // Automatically trigger audio playback and transition to STATE 4 – SPEAKING
@@ -582,21 +635,8 @@ function stopActiveAudio() {
 }
 
 // =============================================================================
-// Floating Transcript Card & History Drawer
+// Conversation History Drawer & Message Bubbles
 // =============================================================================
-function updateFloatingTranscript(userText, botText, mode) {
-  if (!floatingTranscript) return;
-
-  if (floatUserText) floatUserText.textContent = userText;
-  if (floatBotText) floatBotText.textContent = botText;
-
-  if (floatModePill) {
-    floatModePill.textContent = 'TheONE AI';
-    floatModePill.className = 'transcript-mode-pill tag-comedy';
-  }
-
-  floatingTranscript.style.display = 'flex';
-}
 
 function appendMessageBubble(role, content, mode, model) {
   state.transcriptCount++;
@@ -687,6 +727,42 @@ async function clearConversationHistory() {
 // =============================================================================
 // Voice STT Recording (Gnani Prisma v3) -> Automatic Chat Pipeline
 // =============================================================================
+let interimRecognizer = null;
+
+function tryStartInterimSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+  try {
+    if (interimRecognizer) {
+      try { interimRecognizer.abort(); } catch (_) {}
+    }
+    interimRecognizer = new SpeechRecognition();
+    interimRecognizer.continuous = true;
+    interimRecognizer.interimResults = true;
+    interimRecognizer.lang = languageSelect ? languageSelect.value : 'en-IN';
+    interimRecognizer.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        interim += event.results[i][0].transcript;
+      }
+      if (interim.trim() && state.isRecording) {
+        showLiveUserSpeech(interim.trim(), 'listening');
+      }
+    };
+    interimRecognizer.onerror = () => {};
+    interimRecognizer.start();
+  } catch (_) {}
+}
+
+function stopInterimSpeechRecognition() {
+  if (interimRecognizer) {
+    try {
+      interimRecognizer.stop();
+    } catch (_) {}
+    interimRecognizer = null;
+  }
+}
+
 async function startRecording() {
   hideError();
   if (state.isRecording) return;
@@ -736,6 +812,8 @@ async function startRecording() {
 
     // Transition to STATE 2 – LISTENING
     setOrbState('listening');
+    showLiveUserSpeech('Listening to your speech...', 'listening');
+    tryStartInterimSpeechRecognition();
   } catch (err) {
     releaseMicrophone();
     setOrbState('error', 'Recorder Error', err.message);
@@ -750,7 +828,9 @@ async function stopRecording() {
   clearInterval(state.timerInterval);
   state.timerInterval = null;
 
+  stopInterimSpeechRecognition();
   setOrbState('thinking', 'Processing...', 'Transcribing speech with Gnani Prisma...');
+  showLiveUserSpeech('Transcribing speech with Gnani Prisma...', 'transcribing');
 
   const sourceSampleRate = state.audioContext ? state.audioContext.sampleRate : 44100;
   releaseMicrophone();
@@ -880,10 +960,13 @@ async function processVoiceSTT(wavBlob) {
       const transcript = (data.transcript || '').trim();
       if (transcript) {
         showSttBanner(`Transcribed: "${transcript}"`);
+        // Immediately display recognized speech in active conversation area
+        showLiveUserSpeech(transcript, 'voice');
         // Forward to Chat Pipeline
-        await sendChatMessage(transcript);
+        await sendChatMessage(transcript, 'voice');
       } else {
         showSttBanner('No speech detected in audio clip.');
+        showLiveUserSpeech('No speech detected. Tap mic to speak again.', 'listening');
         setOrbState('idle');
       }
     }
@@ -1018,12 +1101,13 @@ function setupEventListeners() {
     });
   }
 
-  // Text message submission
+  // Text message submission (User sends a typed message -> appears in chat, AI replies via voice only)
   if (chatForm) {
     chatForm.addEventListener('submit', (e) => {
       e.preventDefault();
       if (textInput && textInput.value.trim()) {
-        sendChatMessage(textInput.value.trim());
+        const text = textInput.value.trim();
+        sendChatMessage(text, 'typed');
       }
     });
   }

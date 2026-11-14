@@ -367,7 +367,7 @@ class GeminiService:
 
                 # If Gemma returns persistent 500 INTERNAL (upstream infrastructure outage), failover to high-quota flash models
                 if is_gemma and (code in (500, 502, 503) or "INTERNAL" in status_str):
-                    for fallback_model in ("gemini-2.0-flash", "gemini-1.5-flash"):
+                    for fallback_model in ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"):
                         logger.warning(
                             "Upstream Google Gemma endpoint returned persistent 500 INTERNAL (%s). "
                             "Failing over to %s to ensure continuous service...",

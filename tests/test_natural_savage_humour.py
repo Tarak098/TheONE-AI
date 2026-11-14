@@ -195,3 +195,4 @@ def test_natural_savage_turn(item):
         assert not re.search(r"[*<>()\[\]]", reply), f"Found robotic stage directions or formatting: {reply}"
 
     asyncio.run(_run_turn())
+

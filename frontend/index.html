@@ -111,19 +111,17 @@
         <p class="orb-substatus" id="recording-state">Tap the orb or mic to talk with TheONE AI</p>
       </div>
 
-      <!-- Live Floating Transcript (Snappy, Compact, Uncluttered) -->
+      <!-- Live Recognised Speech Card (Shows Recognised User Speech, AI responds via voice only) -->
       <div class="floating-transcript-card" id="floating-transcript" style="display:none">
         <div class="transcript-header">
-          <span class="transcript-mode-pill" id="float-mode-pill">TheONE AI</span>
-          <button type="button" class="btn-float-replay" id="btn-float-replay" title="Replay voice response">
-            <span>▶️</span><span>Play Voice</span>
-          </button>
+          <span class="transcript-mode-pill" id="float-mode-pill">🎙️ Recognised Speech</span>
+          <button type="button" class="btn-expand-transcript" id="btn-open-history-link" title="View full conversation history">History →</button>
         </div>
         <div class="transcript-body">
           <p class="float-user-text" id="float-user-text"></p>
-          <p class="float-bot-text" id="float-bot-text"></p>
+          <p class="float-bot-text hidden" id="float-bot-text" style="display:none"></p>
         </div>
-        <button type="button" class="btn-expand-transcript" id="btn-open-history-link">View conversation history →</button>
+        <button type="button" class="btn-float-replay hidden" id="btn-float-replay" style="display:none"></button>
       </div>
 
       <!-- Loading / Thinking Spinner (Overlay) -->
